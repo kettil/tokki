@@ -1,0 +1,12 @@
+# mac
+.DS_STORE
+._*
+
+# node.js
+node_modules
+coverage
+docs
+
+# application
+build
+tmp

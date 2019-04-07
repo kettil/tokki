@@ -1,0 +1,13 @@
+version: '3'
+
+services:
+  rabbitmq:
+    image: 'rabbitmq:3'
+    hostname: 'test-rabbit'
+    ports:
+      - '${RABBITMQ_HOST}:${RABBITMQ_PORT}:5672'
+    networks: ['test']
+    env_file: ['.env']
+
+networks:
+  test:

@@ -1,0 +1,76 @@
+image: node:latest
+
+stages:
+  - build
+  - test
+
+before_script:
+  - npm install
+
+build:
+  stage: build
+#  cache:
+#    key: "$CI_COMMIT_REF_NAME:node_modules"
+#    paths:
+#      - node_modules/
+#    policy: push
+  script:
+#    - npm install
+    - npm run build
+  only:
+    - master
+    - merge_requests
+    - tags
+
+audit:
+  stage: build
+  allow_failure: true
+  script:
+    - npm audit
+  only:
+    - master
+    - merge_requests
+
+jest:
+  stage: test
+#  cache:
+#    key: "$CI_COMMIT_REF_NAME:node_modules"
+#    paths:
+#      - node_modules/
+#    policy: pull
+  script:
+    - npm run test:ci
+  coverage:
+    '/Statements\s*:\s*(\d+(?:\.\d+)?)%/'
+  only:
+    - master
+    - merge_requests
+    - tags
+
+prettier:
+  stage: test
+#  cache:
+#    key: "$CI_COMMIT_REF_NAME:node_modules"
+#    paths:
+#      - node_modules/
+#    policy: pull
+  script:
+    - npm run prettier:ci
+  only:
+    - master
+    - merge_requests
+    - tags
+
+lint:
+  stage: test
+#  cache:
+#    key: "$CI_COMMIT_REF_NAME:node_modules"
+#    paths:
+#      - node_modules/
+#    policy: pull
+  script:
+    - npm run lint:ci
+  only:
+    - master
+    - merge_requests
+    - tags

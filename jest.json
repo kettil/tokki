@@ -1,0 +1,27 @@
+{
+  "globals": {
+    "ts-jest": {
+      "diagnostics": {
+        "warnOnly": true
+      }
+    }
+  },
+
+  "preset": "ts-jest",
+  "testMatch": ["**/*.test.{js,jsx,ts,tsx}"],
+  "roots": ["<rootDir>/src/"],
+
+  "clearMocks": true,
+
+  "collectCoverageFrom": ["src/**/*.{ts,tsx,js,jsx}"],
+  "coverageReporters": ["text", "lcov"],
+  "coverageDirectory": "coverage",
+  "coverageThreshold": {
+    "global": {
+      "branches": 90,
+      "functions": 90,
+      "lines": 90,
+      "statements": 90
+    }
+  }
+}
