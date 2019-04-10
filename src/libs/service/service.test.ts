@@ -1,12 +1,13 @@
 const mockChannelPublish = jest.fn();
-const mockChannelConsume = jest.fn();
+const mockChannelConsume = jest.fn(() => Promise.resolve({ consumerTag: 'abcdef' }));
 const mockChannelCancel = jest.fn();
 const mockChannelClose = jest.fn();
 const mockChannelNack = jest.fn();
 const mockChannelAck = jest.fn();
 const mockServicesGet = jest.fn();
-const mockErrorServiceEmit = jest.fn();
+const mockErrorServiceSend = jest.fn();
 const mockShutdownHandlerEmit = jest.fn();
+const mockLogInfo = jest.fn();
 const mockLogError = jest.fn();
 const mockLogFatal = jest.fn();
 
@@ -41,13 +42,13 @@ describe('Check the class Service', () => {
     log = {
       child: () => log,
       debug: () => {}, // tslint:disable-line: no-empty
-      info: () => {}, // tslint:disable-line: no-empty
+      info: mockLogInfo,
       error: mockLogError,
       fatal: mockLogFatal,
     } as any;
 
     errorService = {
-      emit: mockErrorServiceEmit,
+      send: mockErrorServiceSend,
     };
 
     services = {
@@ -76,7 +77,8 @@ describe('Check the class Service', () => {
     expect((service as any).channel).toBe(channel);
     expect((service as any).services).toBe(services);
     expect((service as any).shutdownHandler).toBe(instance.shutdownHandler);
-    expect((service as any).consumerTags).toEqual([]);
+    expect((service as any).isInitialized).toEqual({ global: false, consumer: false, sender: false });
+    expect((service as any).consumerTag).toEqual(undefined);
 
     expect((service as any).log).toBe(log);
     expect((service as any).name).toBe(name);
@@ -90,21 +92,7 @@ describe('Check the class Service', () => {
     /**
      *
      */
-    test('it should be thrown a error if init() was not overwritten', async () => {
-      expect.assertions(2);
-
-      try {
-        await service.init();
-      } catch (err) {
-        expect(err).toBeInstanceOf(Error);
-        expect(err.message).toBe('Initialization is not implemented.');
-      }
-    });
-
-    /**
-     *
-     */
-    const testErrorHandlingValue = [
+    const testErrorHandlingValue: [string, any, string, string][] = [
       ['undefined error', undefined, 'Error', 'unknown error'],
       ['error string', 'test-error-string', 'Error', 'test-error-string'],
       ['error object', new Error('test-error'), 'Error', 'test-error'],
@@ -123,14 +111,12 @@ describe('Check the class Service', () => {
 
         expect(mockChannelNack.mock.calls.length).toBe(1);
         expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);
-        expect(mockErrorServiceEmit.mock.calls.length).toBe(1);
-
-        expect(mockErrorServiceEmit.mock.calls[0][0]).toBe('write');
-        expect(mockErrorServiceEmit.mock.calls[0][1].payload).toEqual(payload);
-        expect(mockErrorServiceEmit.mock.calls[0][1].queue).toBe(name);
-        expect(mockErrorServiceEmit.mock.calls[0][1].name).toBe(errName);
-        expect(mockErrorServiceEmit.mock.calls[0][1].message).toBe(errMsg);
-        expect(Array.isArray(mockErrorServiceEmit.mock.calls[0][1].stack)).toBe(true);
+        expect(mockErrorServiceSend.mock.calls.length).toBe(1);
+        expect(mockErrorServiceSend.mock.calls[0][0].payload).toEqual(payload);
+        expect(mockErrorServiceSend.mock.calls[0][0].queue).toBe(name);
+        expect(mockErrorServiceSend.mock.calls[0][0].name).toBe(errName);
+        expect(mockErrorServiceSend.mock.calls[0][0].message).toBe(errMsg);
+        expect(Array.isArray(mockErrorServiceSend.mock.calls[0][0].stack)).toBe(true);
 
         expect(mockLogError.mock.calls.length).toBe(1);
         expect(mockLogError.mock.calls[0]).toEqual([{ err }, '[AMQP] Job has an error.']);
@@ -151,9 +137,8 @@ describe('Check the class Service', () => {
 
       expect(mockChannelNack.mock.calls.length).toBe(1);
       expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);
-      expect(mockErrorServiceEmit.mock.calls.length).toBe(1);
-      expect(mockErrorServiceEmit.mock.calls[0]).toEqual([
-        'write',
+      expect(mockErrorServiceSend.mock.calls.length).toBe(1);
+      expect(mockErrorServiceSend.mock.calls[0]).toEqual([
         {
           payload,
           queue: name,
@@ -187,7 +172,7 @@ describe('Check the class Service', () => {
 
       expect(mockChannelNack.mock.calls.length).toBe(1);
       expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);
-      expect(mockErrorServiceEmit.mock.calls.length).toBe(0);
+      expect(mockErrorServiceSend.mock.calls.length).toBe(0);
       expect(mockChannelClose.mock.calls.length).toBe(1);
 
       expect(mockLogError.mock.calls.length).toBe(1);
@@ -207,32 +192,60 @@ describe('Check the class Service', () => {
   /**
    *
    */
-  describe('Process flow from publisher', () => {
+  describe('Process flow from sender', () => {
     /**
      *
      */
-    test('it should be register a write event', async () => {
-      await service.registerPublishEvent();
+    test('it should be publish when function send() is called', async () => {
+      const mockGlobal = jest.fn();
+      const mockSender = jest.fn();
+      const payload = {
+        a: 'z',
+        n: 23,
+      };
 
-      expect((service as any).handler.eventNames()).toEqual(expect.arrayContaining(['write']));
-      expect((service as any).handler.listenerCount('write')).toBe(1);
+      service.initializeGlobal = mockGlobal;
+      service.initializeSender = mockSender;
+
+      await service.send(payload);
+
+      expect(mockGlobal.mock.calls.length).toBe(1);
+      expect(mockSender.mock.calls.length).toBe(1);
+      expect(mockChannelPublish.mock.calls.length).toBe(1);
+      expect(mockChannelPublish.mock.calls[0]).toEqual([
+        'test-queue',
+        '',
+        Buffer.from(JSON.stringify(payload), 'utf8'),
+        { persistent: true },
+      ]);
     });
 
     /**
      *
      */
-    test('it should be call the write event', async () => {
-      const payload = { a: 'z', b: 42, t: true };
+    test('it should be publish when function send() is called twice', async () => {
+      const mockGlobal = jest.fn();
+      const mockSender = jest.fn();
 
-      await service.registerPublishEvent();
+      service.initializeGlobal = mockGlobal;
+      service.initializeSender = mockSender;
 
-      await service.emit('write', payload);
+      await service.send({ a: 1 });
+      await service.send({ a: 2 });
 
-      expect(mockChannelPublish.mock.calls.length).toBe(1);
+      expect(mockGlobal.mock.calls.length).toBe(1);
+      expect(mockSender.mock.calls.length).toBe(1);
+      expect(mockChannelPublish.mock.calls.length).toBe(2);
       expect(mockChannelPublish.mock.calls[0]).toEqual([
-        name,
+        'test-queue',
         '',
-        Buffer.from(JSON.stringify(payload)),
+        Buffer.from(JSON.stringify({ a: 1 }), 'utf8'),
+        { persistent: true },
+      ]);
+      expect(mockChannelPublish.mock.calls[1]).toEqual([
+        'test-queue',
+        '',
+        Buffer.from(JSON.stringify({ a: 2 }), 'utf8'),
         { persistent: true },
       ]);
     });
@@ -245,55 +258,91 @@ describe('Check the class Service', () => {
     /**
      *
      */
-    test('it should be register a data event', async () => {
-      mockChannelConsume.mockResolvedValue({ consumerTag: 'test-consumer-tag' });
+    test('it should be consumer callback is registered when function setConsumer() is called', async () => {
+      const mockGlobal = jest.fn();
+      const mockConsumer = jest.fn();
+      const mockWorker = jest.fn();
 
-      await service.registerConsumeEvent();
+      service.initializeGlobal = mockGlobal;
+      service.initializeConsumer = mockConsumer;
 
+      await service.setConsumer(mockWorker);
+
+      expect((service as any).consumerTag).toBe('abcdef');
+      expect(mockGlobal.mock.calls.length).toBe(1);
+      expect(mockConsumer.mock.calls.length).toBe(1);
       expect(mockChannelConsume.mock.calls.length).toBe(1);
-      expect(mockChannelConsume.mock.calls[0][0]).toBe(name);
-      expect(typeof mockChannelConsume.mock.calls[0][1]).toBe('function');
-      expect(mockChannelConsume.mock.calls[0][2]).toEqual({ noAck: false });
-      expect((service as any).consumerTags).toEqual(['test-consumer-tag']);
+      expect(mockChannelConsume.mock.calls[0]).toEqual(['test-queue', expect.any(Function), { noAck: false }]);
+      expect(mockChannelCancel.mock.calls.length).toBe(0);
     });
 
     /**
      *
      */
-    test('it should be worked up a data event with NULL', async () => {
-      mockChannelConsume.mockResolvedValue({ consumerTag: 'test-consumer-tag' });
+    test('it should be only last consumer callback is registered when function setConsumer() is called twice', async () => {
+      const mockGlobal = jest.fn();
+      const mockConsumer = jest.fn();
+      const mockWorker1 = jest.fn();
+      const mockWorker2 = jest.fn();
 
-      log.info = jest.fn();
+      mockChannelConsume.mockResolvedValueOnce({ consumerTag: '123456' });
 
-      await service.registerConsumeEvent();
+      service.initializeGlobal = mockGlobal;
+      service.initializeConsumer = mockConsumer;
 
-      const consumer = mockChannelConsume.mock.calls[0][1];
+      await service.setConsumer(mockWorker1);
+
+      expect((service as any).consumerTag).toBe('123456');
+
+      await service.setConsumer(mockWorker2);
+
+      expect((service as any).consumerTag).toBe('abcdef');
+
+      expect(mockGlobal.mock.calls.length).toBe(1);
+      expect(mockConsumer.mock.calls.length).toBe(1);
+      expect(mockChannelConsume.mock.calls.length).toBe(2);
+      expect(mockChannelConsume.mock.calls[0]).toEqual(['test-queue', expect.any(Function), { noAck: false }]);
+      expect(mockChannelConsume.mock.calls[1]).toEqual(['test-queue', expect.any(Function), { noAck: false }]);
+      expect(mockChannelCancel.mock.calls.length).toBe(1);
+    });
+
+    /**
+     *
+     */
+    test('it should be not call consumer callback when the internal consumer is called with NULL', async () => {
+      const mockWorker = jest.fn();
+
+      await service.setConsumer(mockWorker);
+
+      expect(mockChannelConsume.mock.calls.length).toBe(1);
+      expect(mockChannelConsume.mock.calls[0]).toEqual(['test-queue', expect.any(Function), { noAck: false }]);
+
+      const consumer: any = mockChannelConsume.mock.calls[0][1 as any];
 
       await consumer(null);
 
-      expect(log.info.mock.calls.length).toBe(2);
-      expect(log.info.mock.calls[1]).toEqual(['[AMQP] New job without consume message']);
+      expect(mockLogInfo.mock.calls.length).toBe(2);
+      expect(mockLogInfo.mock.calls[1]).toEqual(['[AMQP] New job without consume message']);
     });
 
     /**
      *
      */
-    test('it should be worked up a data event and throw a error in the event function', async () => {
-      mockChannelConsume.mockResolvedValue({ consumerTag: 'test-consumer-tag' });
+    test('it should be internal consumer catched an error when consumer callback throw an error', async () => {
+      expect.assertions(9);
 
-      await service.registerConsumeEvent();
-
-      const consumer = mockChannelConsume.mock.calls[0][1];
+      const errorMessage = 'error-message';
+      const mockWorker = jest.fn(() => Promise.reject(new Error(errorMessage)));
       const payload = { a: 'z', b: 42, t: true };
       const message = { content: Buffer.from(JSON.stringify(payload)), properties: { messageId: '13579' } };
 
-      expect.assertions(7);
+      await service.setConsumer(mockWorker);
 
-      service.on('data', async (data) => {
-        throw Error('event-exception');
-      });
+      expect(mockChannelConsume.mock.calls.length).toBe(1);
+      expect(mockChannelConsume.mock.calls[0]).toEqual(['test-queue', expect.any(Function), { noAck: false }]);
 
-      // call data event
+      const consumer: any = mockChannelConsume.mock.calls[0][1 as any];
+
       await consumer(message);
 
       expect(mockShutdownHandlerEmit.mock.calls.length).toBe(2);
@@ -304,13 +353,14 @@ describe('Check the class Service', () => {
       expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);
 
       expect(mockLogError.mock.calls.length).toBe(1);
-      expect(mockLogError.mock.calls[0]).toEqual([{ err: new Error('event-exception') }, '[AMQP] Job has an error.']);
+      expect(mockLogError.mock.calls[0]).toEqual([{ err: new Error(errorMessage) }, '[AMQP] Job has an error.']);
     });
 
     /**
      *
      */
     describe('Check the data sub function', () => {
+      let mockWorker: jest.Mock;
       let payload: any;
       let message: any;
       let consumer: any;
@@ -321,40 +371,41 @@ describe('Check the class Service', () => {
       beforeEach(async () => {
         payload = { a: 'z', b: 42, t: true };
         message = { content: Buffer.from(JSON.stringify(payload)), properties: { messageId: '13579' } };
+        mockWorker = jest.fn();
 
-        mockChannelConsume.mockResolvedValue({ consumerTag: 'test-consumer-tag' });
+        await service.setConsumer(mockWorker);
 
-        await service.registerConsumeEvent();
-
-        consumer = mockChannelConsume.mock.calls[0][1];
+        consumer = mockChannelConsume.mock.calls[0][1 as any];
       });
 
       /**
        *
        */
-      test('it should be worked up a data event and test the data variable structure', async () => {
-        expect.assertions(8);
+      test('it should be correct data variable structure when consumer callback is called', async () => {
+        expect.assertions(4);
 
-        service.on('data', async (data) => {
-          expect(data.log).toBe(log);
-          expect(data.payload).toEqual(payload);
-          expect(typeof data.next).toBe('function');
-          expect(typeof data.discard).toBe('function');
-          expect(typeof data.defer).toBe('function');
-          expect(typeof data.write).toBe('function');
-        });
-
-        // call data event
         await consumer(message);
 
         expect(mockShutdownHandlerEmit.mock.calls.length).toBe(1);
         expect(mockShutdownHandlerEmit.mock.calls[0]).toEqual(['start', name]);
+
+        expect(mockWorker.mock.calls.length).toBe(1);
+        expect(mockWorker.mock.calls[0]).toEqual([
+          {
+            log,
+            payload,
+            next: expect.any(Function),
+            discard: expect.any(Function),
+            defer: expect.any(Function),
+            write: expect.any(Function),
+          },
+        ]);
       });
 
       /**
        *
        */
-      const testCallbacks = [
+      const testCallbacks: [string, jest.Mock, boolean[]][] = [
         ['next', mockChannelAck, []],
         ['discard', mockChannelNack, [false, false]],
         ['defer', mockChannelNack, [false, true]],
@@ -364,20 +415,22 @@ describe('Check the class Service', () => {
        *
        */
       test.each(testCallbacks)(
-        'it should be worked up a data event and call "%s" function',
+        'it should be finalize the job when the %s() is called inside the consumer callback',
         async (cbName, mock, result) => {
-          expect.assertions(5);
+          expect.assertions(6);
 
-          service.on('data', async (data) => {
+          mockWorker.mockImplementation(async (data: any) => {
             await data[cbName]();
           });
 
-          // call data event
           await consumer(message);
 
           expect(mockShutdownHandlerEmit.mock.calls.length).toBe(2);
           expect(mockShutdownHandlerEmit.mock.calls[0]).toEqual(['start', name]);
           expect(mockShutdownHandlerEmit.mock.calls[1]).toEqual(['finish', name]);
+
+          expect(mockWorker.mock.calls.length).toBe(1);
+
           expect(mock.mock.calls.length).toBe(1);
           expect(mock.mock.calls[0]).toEqual([message, ...result]);
         },
@@ -386,61 +439,65 @@ describe('Check the class Service', () => {
       /**
        *
        */
-      test('it should be worked up a data event and call "write" function', async () => {
-        expect.assertions(7);
+      test('it should be call a other service when the write() is called inside the consumer callback', async () => {
+        expect.assertions(10);
 
-        const mockEmit = jest.fn();
+        const mockSend = jest.fn();
 
         // change global mockup
-        mockServicesGet.mockReturnValue({ emit: mockEmit });
+        mockServicesGet.mockReturnValue({ send: mockSend });
 
-        service.on('data', async (data) => {
+        mockWorker.mockImplementation(async (data: any) => {
           await data.write('other-queue', { a: 'b', c: 1 });
           await data.next();
         });
 
-        // call data event
         await consumer(message);
 
         expect(mockServicesGet.mock.calls.length).toBe(1);
         expect(mockServicesGet.mock.calls[0]).toEqual(['other-queue']);
 
+        expect(mockSend.mock.calls.length).toBe(1);
+        expect(mockSend.mock.calls[0]).toEqual([{ a: 'b', c: 1 }]);
+
         expect(mockShutdownHandlerEmit.mock.calls.length).toBe(2);
         expect(mockShutdownHandlerEmit.mock.calls[0]).toEqual(['start', name]);
         expect(mockShutdownHandlerEmit.mock.calls[1]).toEqual(['finish', name]);
 
-        expect(mockEmit.mock.calls.length).toBe(1);
-        expect(mockEmit.mock.calls[0]).toEqual(['write', { a: 'b', c: 1 }]);
+        expect(mockWorker.mock.calls.length).toBe(1);
 
-        // reset changes from global mockup
+        expect(mockChannelAck.mock.calls.length).toBe(1);
+        expect(mockChannelAck.mock.calls[0]).toEqual([message]);
+
         mockServicesGet.mockReset();
       });
 
       /**
        *
        */
-      test('it should be worked up a data event and call "write" function with unknown service', async () => {
-        expect.assertions(9);
+      test('it should be call a unknown service when the write() is called inside the consumer callback', async () => {
+        expect.assertions(10);
 
-        service.on('data', async (data) => {
+        mockWorker.mockImplementation(async (data: any) => {
           await data.write('unknown-queue', { a: 'b', c: 1 });
         });
 
-        // call data event
         await consumer(message);
 
         expect(mockServicesGet.mock.calls.length).toBe(1);
         expect(mockServicesGet.mock.calls[0]).toEqual(['unknown-queue']);
-
-        expect(mockShutdownHandlerEmit.mock.calls.length).toBe(2);
-        expect(mockShutdownHandlerEmit.mock.calls[0]).toEqual(['start', name]);
-        expect(mockShutdownHandlerEmit.mock.calls[1]).toEqual(['finish', name]);
 
         expect(mockLogError.mock.calls.length).toBe(1);
         expect(mockLogError.mock.calls[0]).toEqual([
           { err: new Error('Service "unknown-queue" is unknown') },
           '[AMQP] Job has an error.',
         ]);
+
+        expect(mockShutdownHandlerEmit.mock.calls.length).toBe(2);
+        expect(mockShutdownHandlerEmit.mock.calls[0]).toEqual(['start', name]);
+        expect(mockShutdownHandlerEmit.mock.calls[1]).toEqual(['finish', name]);
+
+        expect(mockWorker.mock.calls.length).toBe(1);
 
         expect(mockChannelNack.mock.calls.length).toBe(1);
         expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);
@@ -452,28 +509,29 @@ describe('Check the class Service', () => {
    *
    */
   describe('Process flow to shutsdown', () => {
-    const testValues = [['null consumers', 0], ['one consumer', 1], ['three consumers', 3]];
+    /**
+     *
+     */
+    test('it should be cancels without consumer', async () => {
+      expect.assertions(1);
+
+      await service.cancel();
+
+      expect(mockChannelCancel.mock.calls.length).toBe(0);
+    });
 
     /**
      *
      */
-    test.each(testValues)('it should be cancels consumers (%s)', async (d, count) => {
-      expect.assertions(1 + count);
+    test('it should be cancels with consumer', async () => {
+      expect.assertions(2);
 
-      for (let i = 1; i <= count; i += 1) {
-        mockChannelConsume.mockResolvedValueOnce({ consumerTag: 'test-consumer-tag-' + i });
-      }
-
-      for (let i = 1; i <= count; i += 1) {
-        await service.registerConsumeEvent();
-      }
+      (service as any).consumerTag = 'test-consumer-tag';
 
       await service.cancel();
 
-      expect(mockChannelCancel.mock.calls.length).toBe(count);
-      for (let i = 1; i <= count; i += 1) {
-        expect(mockChannelCancel.mock.calls[i - 1]).toEqual(['test-consumer-tag-' + i]);
-      }
+      expect(mockChannelCancel.mock.calls.length).toBe(1);
+      expect(mockChannelCancel.mock.calls[0]).toEqual(['test-consumer-tag']);
     });
   });
 });

@@ -235,10 +235,6 @@ describe('Check the class Instance', () => {
       expect((Service as jest.Mock).mock.calls[0][2]).toBe(name);
       expect((Service as jest.Mock).mock.calls[0][3]).toBe(mockServiceError);
 
-      expect((service.init as jest.Mock).mock.calls.length).toBe(1);
-      expect((service.registerConsumeEvent as jest.Mock).mock.calls.length).toBe(1);
-      expect((service.registerPublishEvent as jest.Mock).mock.calls.length).toBe(1);
-
       expect(instance.services.size).toBe(1);
       expect(instance.services.get(name)).toBe(service);
     });
@@ -306,10 +302,6 @@ describe('Check the class Instance', () => {
       expect((ServiceClass as jest.Mock).mock.calls[0][1]).toBe(instance);
       expect((ServiceClass as jest.Mock).mock.calls[0][2]).toBe(name);
       expect((ServiceClass as jest.Mock).mock.calls[0][3]).toBe(mockServiceError);
-
-      expect((service.init as jest.Mock).mock.calls.length).toBe(1);
-      expect((service.registerConsumeEvent as jest.Mock).mock.calls.length).toBe(1);
-      expect((service.registerPublishEvent as jest.Mock).mock.calls.length).toBe(1);
 
       expect(instance.services.size).toBe(1);
       expect(instance.services.get(name)).toBe(service);

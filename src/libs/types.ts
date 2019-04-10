@@ -45,6 +45,11 @@ export type processTriggerType = (params: {
 /**
  *
  */
+export type consumerType<PayloadType> = (data: consumerDataType<PayloadType>) => Promise<void>;
+
+/**
+ *
+ */
 export interface InterfaceLog {
   (msg: string, ...params: any[]): void;
   (obj: {}, msg: string, ...params: any[]): void;

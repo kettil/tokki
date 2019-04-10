@@ -1,22 +1,21 @@
 import { Channel, ConsumeMessage } from 'amqplib';
 
-import EventAsyncEmitter from '../helper/eventAsyncEmitter';
 import ShutdownHandler from '../helper/shutdownHandler';
 
 import Instance from '../instance';
 
-import { consumerDataType, loggerType, objectType, servicesType } from '../types';
+import { consumerDataType, consumerType, loggerType, objectType, servicesType } from '../types';
 
-type Events = 'write' | 'data';
+export default class Service<PayloadType extends {} = objectType> {
+  protected isInitialized = { global: false, consumer: false, sender: false };
 
-export default class Service<PayloadType extends {} = objectType> extends EventAsyncEmitter<Events> {
+  protected consumerTag?: string;
+
   protected readonly channel: Channel;
 
   protected readonly services: servicesType;
 
   protected readonly shutdownHandler: ShutdownHandler;
-
-  protected readonly consumerTags: string[] = [];
 
   /**
    *
@@ -25,50 +24,79 @@ export default class Service<PayloadType extends {} = objectType> extends EventA
    * @param instance
    */
   constructor(readonly log: loggerType, instance: Instance, readonly name: string, readonly error?: Service) {
-    super();
-
     this.channel = instance.channel;
     this.services = instance.services;
     this.shutdownHandler = instance.shutdownHandler;
   }
 
   /**
-   * Initializes the settings for the queue.
+   *
    */
-  async init() {
-    throw new Error('Initialization is not implemented.');
-  }
+  async initializeGlobal() {}
 
   /**
    *
    */
-  async registerPublishEvent() {
-    this.log.info(`[AMQP] Create publish event "${this.name}".`);
-
-    this.on('write', async (payload: PayloadType) => {
-      this.log.debug({ payload }, `[AMQP] New payload for queue "${this.name}".`);
-
-      this.channel.publish(this.name, '', Buffer.from(JSON.stringify(payload), 'utf8'), { persistent: true });
-    });
-  }
+  async initializeSender() {}
 
   /**
    *
    */
-  async registerConsumeEvent() {
-    this.log.info(`[AMQP] Create consumer on channel "${this.name}".`);
+  async initializeConsumer() {}
 
-    const { consumerTag } = await this.channel.consume(this.name, await this.createConsumer(), {
+  /**
+   *
+   * @param payload
+   */
+  async send(payload: PayloadType) {
+    if (!this.isInitialized.global) {
+      await this.initializeGlobal();
+      this.isInitialized.global = true;
+    }
+    if (!this.isInitialized.sender) {
+      await this.initializeSender();
+      this.isInitialized.sender = true;
+    }
+
+    this.log.info({ payload }, `[AMQP] New payload for queue "${this.name}".`);
+
+    this.channel.publish(this.name, '', Buffer.from(JSON.stringify(payload), 'utf8'), { persistent: true });
+  }
+
+  /**
+   * Define a consumer.
+   *
+   * If a consumer already exists, it is replaced by the new consumer.
+   *
+   * @param consumer
+   */
+  async setConsumer(consumer: consumerType<PayloadType>) {
+    if (!this.isInitialized.global) {
+      await this.initializeGlobal();
+      this.isInitialized.global = true;
+    }
+    if (!this.isInitialized.consumer) {
+      await this.initializeConsumer();
+      this.isInitialized.consumer = true;
+    }
+
+    this.log.info(`[AMQP] Set consumer on channel "${this.name}".`);
+
+    // If a consumer exists, it is deactivated.
+    await this.cancel();
+
+    const { consumerTag } = await this.channel.consume(this.name, await this.createConsumer(consumer), {
       noAck: false,
     });
 
-    this.consumerTags.push(consumerTag);
+    this.consumerTag = consumerTag;
   }
 
   /**
    *
+   * @param consumer
    */
-  async createConsumer() {
+  async createConsumer(consumer: consumerType<PayloadType>) {
     return async (message: ConsumeMessage | null) => {
       if (message) {
         const logChild = this.log.child({ id: message.properties.messageId });
@@ -112,13 +140,13 @@ export default class Service<PayloadType extends {} = objectType> extends EventA
                 throw new Error(`Service "${name}" is unknown`);
               }
 
-              await service.emit('write', data);
+              await service.send(data);
             },
           };
 
           await this.shutdownHandler.emit('start', this.name);
 
-          await this.emit('data', parsedMessage);
+          await consumer(parsedMessage);
         } catch (err) {
           await this.shutdownHandler.emit('finish', this.name);
 
@@ -145,7 +173,7 @@ export default class Service<PayloadType extends {} = objectType> extends EventA
       await this.channel.nack(message, false, false);
 
       if (this.error) {
-        await this.error.emit('write', {
+        await this.error.send({
           queue: this.name,
           payload: JSON.parse(message.content.toString('utf8')),
           name: error.name,
@@ -164,16 +192,8 @@ export default class Service<PayloadType extends {} = objectType> extends EventA
    * Consumers do not accept new jobs.
    */
   async cancel() {
-    const promises = this.consumerTags.map((consumerTag) => this.channel.cancel(consumerTag));
-
-    await Promise.all(promises);
+    if (this.consumerTag) {
+      await this.channel.cancel(this.consumerTag);
+    }
   }
 }
-
-/**
- * weg von event handler
- *
- * write function
- * setConsumer function
- *
- */
