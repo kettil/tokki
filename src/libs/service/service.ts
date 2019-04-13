@@ -105,11 +105,15 @@ export default class Service<PayloadType extends {} = objectType> {
 
           logChild.info({ payload }, '[AMQP] New job is started.');
 
+          let isFinalized = false;
+
           const parsedMessage: consumerDataType<PayloadType> = {
             log: logChild,
             payload,
 
             next: async () => {
+              isFinalized = true;
+
               logChild.info({ payload }, '[AMQP] Job completed successfully.');
 
               await this.shutdownHandler.emit('finish', this.name);
@@ -118,6 +122,8 @@ export default class Service<PayloadType extends {} = objectType> {
             },
 
             discard: async () => {
+              isFinalized = true;
+
               logChild.info({ payload }, '[AMQP] Job has failed');
 
               await this.shutdownHandler.emit('finish', this.name);
@@ -126,6 +132,8 @@ export default class Service<PayloadType extends {} = objectType> {
             },
 
             defer: async () => {
+              isFinalized = true;
+
               logChild.info({ payload }, '[AMQP] Job is requeue.');
 
               await this.shutdownHandler.emit('finish', this.name);
@@ -147,6 +155,10 @@ export default class Service<PayloadType extends {} = objectType> {
           await this.shutdownHandler.emit('start', this.name);
 
           await consumer(parsedMessage);
+
+          if (!isFinalized) {
+            throw new Error('Job was not marked as completed.');
+          }
         } catch (err) {
           await this.shutdownHandler.emit('finish', this.name);
 

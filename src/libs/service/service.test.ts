@@ -382,12 +382,17 @@ describe('Check the class Service', () => {
        *
        */
       test('it should be correct data variable structure when consumer callback is called', async () => {
-        expect.assertions(4);
+        expect.assertions(5);
+
+        mockWorker.mockImplementation(async (data: any) => {
+          await data.next();
+        });
 
         await consumer(message);
 
-        expect(mockShutdownHandlerEmit.mock.calls.length).toBe(1);
+        expect(mockShutdownHandlerEmit.mock.calls.length).toBe(2);
         expect(mockShutdownHandlerEmit.mock.calls[0]).toEqual(['start', name]);
+        expect(mockShutdownHandlerEmit.mock.calls[1]).toEqual(['finish', name]);
 
         expect(mockWorker.mock.calls.length).toBe(1);
         expect(mockWorker.mock.calls[0]).toEqual([
@@ -399,6 +404,28 @@ describe('Check the class Service', () => {
             defer: expect.any(Function),
             write: expect.any(Function),
           },
+        ]);
+      });
+
+      /**
+       *
+       */
+      test.only('it should be without confirmation the job when consumer callback is called', async () => {
+        expect.assertions(7);
+
+        await consumer(message);
+
+        expect(mockShutdownHandlerEmit.mock.calls.length).toBe(2);
+        expect(mockShutdownHandlerEmit.mock.calls[0]).toEqual(['start', name]);
+        expect(mockShutdownHandlerEmit.mock.calls[1]).toEqual(['finish', name]);
+
+        expect(mockChannelNack.mock.calls.length).toBe(1);
+        expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);
+
+        expect(mockLogError.mock.calls.length).toBe(1);
+        expect(mockLogError.mock.calls[0]).toEqual([
+          { err: new Error('Job was not marked as completed.') },
+          '[AMQP] Job has an error.',
         ]);
       });
 
