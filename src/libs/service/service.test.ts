@@ -410,7 +410,7 @@ describe('Check the class Service', () => {
       /**
        *
        */
-      test.only('it should be without confirmation the job when consumer callback is called', async () => {
+      test('it should be without confirmation the job when consumer callback is called', async () => {
         expect.assertions(7);
 
         await consumer(message);
