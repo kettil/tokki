@@ -31,7 +31,11 @@ export const connect = async (log: loggerType, url: string, prefetch: number = 1
 
   await channel.prefetch(prefetch);
 
-  return new Instance(log, connection, channel);
+  const instance = new Instance(log, connection, channel);
+
+  await instance.initEvents();
+
+  return instance;
 };
 
 export default connect;

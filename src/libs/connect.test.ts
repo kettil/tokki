@@ -50,6 +50,7 @@ describe('Check the function connect()', () => {
 
     expect(instance).toBeInstanceOf(Instance);
 
+    expect((instance.initEvents as jest.Mock).mock.calls.length).toBe(1);
     expect((processExit as jest.Mock).mock.calls.length).toBe(0);
 
     expect(mockAmqpConnect.mock.calls.length).toBe(1);
@@ -77,6 +78,7 @@ describe('Check the function connect()', () => {
 
     expect(instance).toBeInstanceOf(Instance);
 
+    expect((instance.initEvents as jest.Mock).mock.calls.length).toBe(1);
     expect((processExit as jest.Mock).mock.calls.length).toBe(0);
 
     expect(mockAmqpConnect.mock.calls.length).toBe(1);
