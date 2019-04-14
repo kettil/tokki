@@ -116,9 +116,8 @@ export default class Service<PayloadType extends {} = objectType> {
 
               logChild.info({ payload }, '[AMQP] Job completed successfully.');
 
-              await this.shutdownHandler.emit('finish', this.name);
-
               await this.channel.ack(message);
+              await this.shutdownHandler.emit('finish', this.name);
             },
 
             discard: async () => {
@@ -126,9 +125,8 @@ export default class Service<PayloadType extends {} = objectType> {
 
               logChild.info({ payload }, '[AMQP] Job has failed');
 
-              await this.shutdownHandler.emit('finish', this.name);
-
               await this.channel.nack(message, false, false);
+              await this.shutdownHandler.emit('finish', this.name);
             },
 
             defer: async () => {
@@ -136,9 +134,8 @@ export default class Service<PayloadType extends {} = objectType> {
 
               logChild.info({ payload }, '[AMQP] Job is requeue.');
 
-              await this.shutdownHandler.emit('finish', this.name);
-
               await this.channel.nack(message, false, true);
+              await this.shutdownHandler.emit('finish', this.name);
             },
 
             write: async (name: string, data: any) => {
@@ -160,8 +157,6 @@ export default class Service<PayloadType extends {} = objectType> {
             throw new Error('Job was not marked as completed.');
           }
         } catch (err) {
-          await this.shutdownHandler.emit('finish', this.name);
-
           await this.errorHandling(logChild, message, err);
         }
       } else {
@@ -183,6 +178,7 @@ export default class Service<PayloadType extends {} = objectType> {
       log.error({ err }, '[AMQP] Job has an error.');
 
       await this.channel.nack(message, false, false);
+      await this.shutdownHandler.emit('finish', this.name);
 
       if (this.error) {
         await this.error.send({
