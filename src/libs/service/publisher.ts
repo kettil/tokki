@@ -15,8 +15,10 @@ export default class Publisher<PayloadType extends {} = objectType> extends Serv
    */
   async initializeConsumer() {
     const assertQueueMetadata = await this.channel.assertQueue('', { autoDelete: true, exclusive: true });
-    const generatedQueueName = assertQueueMetadata.queue;
 
-    await this.channel.bindQueue(generatedQueueName, this.name, '', {});
+    // Replace default consumer queue name with the generated queue name
+    this.consumerQueue = assertQueueMetadata.queue;
+
+    await this.channel.bindQueue(this.consumerQueue, this.name, '', {});
   }
 }

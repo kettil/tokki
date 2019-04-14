@@ -1,8 +1,10 @@
 const mockLogError = jest.fn();
 const mockLogFatal = jest.fn();
-const mockAmqpClose = jest.fn();
 const mockAmqpConnect = jest.fn();
 const mockAmqpChannel = jest.fn();
+const mockAmqpConnectOn = jest.fn();
+const mockAmqpChannelOn = jest.fn();
+const mockAmqpChannelClose = jest.fn();
 const mockAmqpPrefetch = jest.fn();
 const mockAmqpAssertExchange = jest.fn();
 const mockAmqpAssertQueue = jest.fn();
@@ -46,8 +48,12 @@ describe('Integration Testing', () => {
       fatal: mockLogFatal,
     } as any;
 
-    returnConnect = { createChannel: mockAmqpChannel, close: mockAmqpClose };
+    returnConnect = {
+      createChannel: mockAmqpChannel,
+      on: mockAmqpConnectOn,
+    };
     returnChannel = {
+      on: mockAmqpChannelOn,
       prefetch: mockAmqpPrefetch,
       assertExchange: mockAmqpAssertExchange,
       assertQueue: mockAmqpAssertQueue,
@@ -57,6 +63,7 @@ describe('Integration Testing', () => {
       ack: mockAmqpAck,
       nack: mockAmqpNack,
       cancel: mockAmqpCancel,
+      close: mockAmqpChannelClose,
     };
 
     queueName = 'randome-queue-name';
@@ -98,6 +105,9 @@ describe('Integration Testing', () => {
 
     expect(mockLogError.mock.calls.length).toBe(0);
     expect(mockLogFatal.mock.calls.length).toBe(0);
+
+    expect(mockAmqpConnectOn.mock.calls.length).toBe(2);
+    expect(mockAmqpChannelOn.mock.calls.length).toBe(2);
   });
 
   const serviceValues: ['worker' | 'publisher', any, string][] = [
@@ -148,6 +158,8 @@ describe('Integration Testing', () => {
     await w3.setConsumer(mockConsumer);
 
     await instance.shutdown();
+
+    expect(mockAmqpChannelClose.mock.calls.length).toBe(1);
 
     expect(mockAmqpCancel.mock.calls.length).toBe(5);
     expect(mockAmqpCancel.mock.calls[0]).toEqual([queueTag + 'p1']);
@@ -204,13 +216,14 @@ describe('Integration Testing', () => {
      *
      */
     test('it should be call amqp consume() when consumer is added', async () => {
+      const queueName = type === 'publisher' ? 'randome-queue-name' : type + '-queue';
       const mockConsumer = jest.fn();
 
       await service.setConsumer(mockConsumer);
 
       expect(mockAmqpPublish.mock.calls.length).toBe(0);
       expect(mockAmqpConsume.mock.calls.length).toBe(1);
-      expect(mockAmqpConsume.mock.calls[0]).toEqual([type + '-queue', expect.any(Function), { noAck: false }]);
+      expect(mockAmqpConsume.mock.calls[0]).toEqual([queueName, expect.any(Function), { noAck: false }]);
       expect(mockConsumer.mock.calls.length).toBe(0);
 
       expect(mockLogError.mock.calls.length).toBe(0);

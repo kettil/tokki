@@ -11,6 +11,8 @@ export default class Service<PayloadType extends {} = objectType> {
 
   protected consumerTag?: string;
 
+  protected consumerQueue: string;
+
   protected readonly channel: Channel;
 
   protected readonly services: servicesType;
@@ -27,6 +29,8 @@ export default class Service<PayloadType extends {} = objectType> {
     this.channel = instance.channel;
     this.services = instance.services;
     this.shutdownHandler = instance.shutdownHandler;
+
+    this.consumerQueue = name;
   }
 
   /**
@@ -80,12 +84,12 @@ export default class Service<PayloadType extends {} = objectType> {
       this.isInitialized.consumer = true;
     }
 
-    this.log.info(`[AMQP] Set consumer on channel "${this.name}".`);
+    this.log.info(`[AMQP] Set consumer on channel "${this.name}" (queue: ${this.consumerQueue}).`);
 
     // If a consumer exists, it is deactivated.
     await this.cancel();
 
-    const { consumerTag } = await this.channel.consume(this.name, await this.createConsumer(consumer), {
+    const { consumerTag } = await this.channel.consume(this.consumerQueue, await this.createConsumer(consumer), {
       noAck: false,
     });
 
