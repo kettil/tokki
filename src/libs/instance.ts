@@ -113,19 +113,20 @@ export default class Instance extends EventAsyncEmitter<Events> {
     Service: typeof AbstractService,
     name: string,
     errorService?: AbstractService,
+    id: string = name,
   ): Promise<AbstractService<PayloadType>> {
     if (typeof name !== 'string' || name.trim() === '') {
       throw new Error('Queue name is missing');
     }
 
-    let service = this.services.get(name) as AbstractService<PayloadType>;
+    let service = this.services.get(id) as AbstractService<PayloadType>;
 
     if (!service) {
       const logChild = this.log.child({ queue: name, type: Service.name.toLowerCase() });
 
       service = new Service<PayloadType>(logChild, this, name, errorService);
 
-      this.services.set(name, service);
+      this.services.set(id, service);
     } else if (!(service instanceof Service)) {
       const serviceName1 = (service as AbstractService).constructor.name.toLowerCase();
       const serviceName2 = Service.name.toLowerCase();
