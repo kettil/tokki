@@ -94,7 +94,7 @@ describe('Check the class Service', () => {
     /**
      *
      */
-    const testErrorHandlingValue: [string, any, string, string][] = [
+    const testErrorHandlingValue: Array<[string, any, string, string]> = [
       ['undefined error', undefined, 'Error', 'unknown error'],
       ['error string', 'test-error-string', 'Error', 'test-error-string'],
       ['error object', new Error('test-error'), 'Error', 'test-error'],
@@ -437,7 +437,7 @@ describe('Check the class Service', () => {
       /**
        *
        */
-      const testCallbacks: [string, jest.Mock, boolean[]][] = [
+      const testCallbacks: Array<[string, jest.Mock, boolean[]]> = [
         ['next', mockChannelAck, []],
         ['discard', mockChannelNack, [false, false]],
         ['defer', mockChannelNack, [false, true]],
