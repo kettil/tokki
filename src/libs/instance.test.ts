@@ -1,5 +1,4 @@
 const mockLogFatal = jest.fn();
-
 const mockConnectionOn = jest.fn();
 const mockConnectionClose = jest.fn();
 const mockConnectionRemoveAllListeners = jest.fn();
@@ -8,12 +7,12 @@ const mockChannelClose = jest.fn();
 const mockChannelRemoveAllListeners = jest.fn();
 const mockServiceError = jest.fn();
 
-jest.mock('./helper/shutdownHandler');
+jest.mock('./helper/closeHandler');
 jest.mock('./service/service');
 jest.mock('./service/worker');
 jest.mock('./service/publisher');
 
-import ShutdownHandler from './helper/shutdownHandler';
+import CloseHandler from './helper/closeHandler';
 import Service from './service/service';
 
 import PublisherService from './service/publisher';
@@ -67,10 +66,8 @@ describe('Check the class Instance', () => {
     expect(instance.log).toBe(log);
     expect(instance.channel).toBe(channel);
     expect(instance.connection).toBe(connection);
-    expect(instance.shutdownHandler).toBeInstanceOf(ShutdownHandler);
+    expect(instance.closeHandler).toBeInstanceOf(CloseHandler);
     expect(instance.services).toBeInstanceOf(Map);
-
-    expect((instance.shutdownHandler.initEvents as jest.Mock).mock.calls.length).toBe(1);
   });
 
   /**
@@ -96,9 +93,9 @@ describe('Check the class Instance', () => {
     expect(mockChannelOn.mock.calls[1][0]).toBe('error');
     expect(typeof mockChannelOn.mock.calls[1][1]).toBe('function');
 
-    expect((instance.shutdownHandler.on as jest.Mock).mock.calls.length).toBe(1);
-    expect((instance.shutdownHandler.on as jest.Mock).mock.calls[0][0]).toBe('shutdown');
-    expect(typeof (instance.shutdownHandler.on as jest.Mock).mock.calls[0][1]).toBe('function');
+    expect((instance.closeHandler.on as jest.Mock).mock.calls.length).toBe(1);
+    expect((instance.closeHandler.on as jest.Mock).mock.calls[0][0]).toBe('close');
+    expect(typeof (instance.closeHandler.on as jest.Mock).mock.calls[0][1]).toBe('function');
   });
 
   /**
@@ -201,12 +198,12 @@ describe('Check the class Instance', () => {
     /**
      *
      */
-    test('it should be call the shutdownHandler shutdown event when this is triggered', async () => {
-      expect((instance.shutdownHandler.on as jest.Mock).mock.calls.length).toBe(1);
-      expect((instance.shutdownHandler.on as jest.Mock).mock.calls[0][0]).toBe('shutdown');
-      expect(typeof (instance.shutdownHandler.on as jest.Mock).mock.calls[0][1]).toBe('function');
+    test('it should be call the closeHandler shutdown event when this is triggered', async () => {
+      expect((instance.closeHandler.on as jest.Mock).mock.calls.length).toBe(1);
+      expect((instance.closeHandler.on as jest.Mock).mock.calls[0][0]).toBe('close');
+      expect(typeof (instance.closeHandler.on as jest.Mock).mock.calls[0][1]).toBe('function');
 
-      const event = (instance.shutdownHandler.on as jest.Mock).mock.calls[0][1];
+      const event = (instance.closeHandler.on as jest.Mock).mock.calls[0][1];
 
       // Call the function to be tested.
       await event();
@@ -318,7 +315,7 @@ describe('Check the class Instance', () => {
     test('it should be called service cancel function when function shutdown() is called without services', async () => {
       await instance.shutdown();
 
-      expect((instance.shutdownHandler.activation as jest.Mock).mock.calls.length).toBe(1);
+      expect((instance.closeHandler.close as jest.Mock).mock.calls.length).toBe(1);
     });
 
     /**
@@ -329,7 +326,7 @@ describe('Check the class Instance', () => {
 
       await instance.shutdown();
 
-      expect((instance.shutdownHandler.activation as jest.Mock).mock.calls.length).toBe(1);
+      expect((instance.closeHandler.close as jest.Mock).mock.calls.length).toBe(1);
 
       expect((w1.cancel as jest.Mock).mock.calls.length).toBe(1);
     });
@@ -344,7 +341,7 @@ describe('Check the class Instance', () => {
 
       await instance.shutdown();
 
-      expect((instance.shutdownHandler.activation as jest.Mock).mock.calls.length).toBe(1);
+      expect((instance.closeHandler.close as jest.Mock).mock.calls.length).toBe(1);
 
       expect((w1.cancel as jest.Mock).mock.calls.length).toBe(1);
       expect((p1.cancel as jest.Mock).mock.calls.length).toBe(1);

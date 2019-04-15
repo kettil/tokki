@@ -6,7 +6,8 @@ const mockChannelNack = jest.fn();
 const mockChannelAck = jest.fn();
 const mockServicesGet = jest.fn();
 const mockErrorServiceSend = jest.fn();
-const mockShutdownHandlerEmit = jest.fn();
+const mockCloseHandlerStart = jest.fn();
+const mockCloseHandlerFinish = jest.fn();
 const mockLogInfo = jest.fn();
 const mockLogError = jest.fn();
 const mockLogFatal = jest.fn();
@@ -58,8 +59,9 @@ describe('Check the class Service', () => {
     instance = {
       channel,
       services,
-      shutdownHandler: {
-        emit: mockShutdownHandlerEmit,
+      closeHandler: {
+        start: mockCloseHandlerStart,
+        finish: mockCloseHandlerFinish,
       },
     };
 
@@ -76,7 +78,7 @@ describe('Check the class Service', () => {
     // Checked the protected class variables
     expect((service as any).channel).toBe(channel);
     expect((service as any).services).toBe(services);
-    expect((service as any).shutdownHandler).toBe(instance.shutdownHandler);
+    expect((service as any).closeHandler).toBe(instance.closeHandler);
     expect((service as any).isInitialized).toEqual({ global: false, consumer: false, sender: false });
     expect((service as any).consumerTag).toEqual(undefined);
 
@@ -329,7 +331,7 @@ describe('Check the class Service', () => {
      *
      */
     test('it should be internal consumer catched an error when consumer callback throw an error', async () => {
-      expect.assertions(9);
+      expect.assertions(10);
 
       const errorMessage = 'error-message';
       const mockWorker = jest.fn(() => Promise.reject(new Error(errorMessage)));
@@ -345,9 +347,10 @@ describe('Check the class Service', () => {
 
       await consumer(message);
 
-      expect(mockShutdownHandlerEmit.mock.calls.length).toBe(2);
-      expect(mockShutdownHandlerEmit.mock.calls[0]).toEqual(['start', name]);
-      expect(mockShutdownHandlerEmit.mock.calls[1]).toEqual(['finish', name]);
+      expect(mockCloseHandlerStart.mock.calls.length).toBe(1);
+      expect(mockCloseHandlerStart.mock.calls[0]).toEqual([name]);
+      expect(mockCloseHandlerFinish.mock.calls.length).toBe(1);
+      expect(mockCloseHandlerFinish.mock.calls[0]).toEqual([name]);
 
       expect(mockChannelNack.mock.calls.length).toBe(1);
       expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);
@@ -382,7 +385,7 @@ describe('Check the class Service', () => {
        *
        */
       test('it should be correct data variable structure when consumer callback is called', async () => {
-        expect.assertions(5);
+        expect.assertions(6);
 
         mockWorker.mockImplementation(async (data: any) => {
           await data.next();
@@ -390,9 +393,10 @@ describe('Check the class Service', () => {
 
         await consumer(message);
 
-        expect(mockShutdownHandlerEmit.mock.calls.length).toBe(2);
-        expect(mockShutdownHandlerEmit.mock.calls[0]).toEqual(['start', name]);
-        expect(mockShutdownHandlerEmit.mock.calls[1]).toEqual(['finish', name]);
+        expect(mockCloseHandlerStart.mock.calls.length).toBe(1);
+        expect(mockCloseHandlerStart.mock.calls[0]).toEqual([name]);
+        expect(mockCloseHandlerFinish.mock.calls.length).toBe(1);
+        expect(mockCloseHandlerFinish.mock.calls[0]).toEqual([name]);
 
         expect(mockWorker.mock.calls.length).toBe(1);
         expect(mockWorker.mock.calls[0]).toEqual([
@@ -411,13 +415,14 @@ describe('Check the class Service', () => {
        *
        */
       test('it should be without confirmation the job when consumer callback is called', async () => {
-        expect.assertions(7);
+        expect.assertions(8);
 
         await consumer(message);
 
-        expect(mockShutdownHandlerEmit.mock.calls.length).toBe(2);
-        expect(mockShutdownHandlerEmit.mock.calls[0]).toEqual(['start', name]);
-        expect(mockShutdownHandlerEmit.mock.calls[1]).toEqual(['finish', name]);
+        expect(mockCloseHandlerStart.mock.calls.length).toBe(1);
+        expect(mockCloseHandlerStart.mock.calls[0]).toEqual([name]);
+        expect(mockCloseHandlerFinish.mock.calls.length).toBe(1);
+        expect(mockCloseHandlerFinish.mock.calls[0]).toEqual([name]);
 
         expect(mockChannelNack.mock.calls.length).toBe(1);
         expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);
@@ -444,7 +449,7 @@ describe('Check the class Service', () => {
       test.each(testCallbacks)(
         'it should be finalize the job when the %s() is called inside the consumer callback',
         async (cbName, mock, result) => {
-          expect.assertions(6);
+          expect.assertions(7);
 
           mockWorker.mockImplementation(async (data: any) => {
             await data[cbName]();
@@ -452,9 +457,10 @@ describe('Check the class Service', () => {
 
           await consumer(message);
 
-          expect(mockShutdownHandlerEmit.mock.calls.length).toBe(2);
-          expect(mockShutdownHandlerEmit.mock.calls[0]).toEqual(['start', name]);
-          expect(mockShutdownHandlerEmit.mock.calls[1]).toEqual(['finish', name]);
+          expect(mockCloseHandlerStart.mock.calls.length).toBe(1);
+          expect(mockCloseHandlerStart.mock.calls[0]).toEqual([name]);
+          expect(mockCloseHandlerFinish.mock.calls.length).toBe(1);
+          expect(mockCloseHandlerFinish.mock.calls[0]).toEqual([name]);
 
           expect(mockWorker.mock.calls.length).toBe(1);
 
@@ -467,7 +473,7 @@ describe('Check the class Service', () => {
        *
        */
       test('it should be call a other service when the write() is called inside the consumer callback', async () => {
-        expect.assertions(10);
+        expect.assertions(11);
 
         const mockSend = jest.fn();
 
@@ -487,9 +493,10 @@ describe('Check the class Service', () => {
         expect(mockSend.mock.calls.length).toBe(1);
         expect(mockSend.mock.calls[0]).toEqual([{ a: 'b', c: 1 }]);
 
-        expect(mockShutdownHandlerEmit.mock.calls.length).toBe(2);
-        expect(mockShutdownHandlerEmit.mock.calls[0]).toEqual(['start', name]);
-        expect(mockShutdownHandlerEmit.mock.calls[1]).toEqual(['finish', name]);
+        expect(mockCloseHandlerStart.mock.calls.length).toBe(1);
+        expect(mockCloseHandlerStart.mock.calls[0]).toEqual([name]);
+        expect(mockCloseHandlerFinish.mock.calls.length).toBe(1);
+        expect(mockCloseHandlerFinish.mock.calls[0]).toEqual([name]);
 
         expect(mockWorker.mock.calls.length).toBe(1);
 
@@ -503,7 +510,7 @@ describe('Check the class Service', () => {
        *
        */
       test('it should be call a unknown service when the write() is called inside the consumer callback', async () => {
-        expect.assertions(10);
+        expect.assertions(11);
 
         mockWorker.mockImplementation(async (data: any) => {
           await data.write('unknown-queue', { a: 'b', c: 1 });
@@ -520,9 +527,10 @@ describe('Check the class Service', () => {
           '[AMQP] Job has an error.',
         ]);
 
-        expect(mockShutdownHandlerEmit.mock.calls.length).toBe(2);
-        expect(mockShutdownHandlerEmit.mock.calls[0]).toEqual(['start', name]);
-        expect(mockShutdownHandlerEmit.mock.calls[1]).toEqual(['finish', name]);
+        expect(mockCloseHandlerStart.mock.calls.length).toBe(1);
+        expect(mockCloseHandlerStart.mock.calls[0]).toEqual([name]);
+        expect(mockCloseHandlerFinish.mock.calls.length).toBe(1);
+        expect(mockCloseHandlerFinish.mock.calls[0]).toEqual([name]);
 
         expect(mockWorker.mock.calls.length).toBe(1);
 

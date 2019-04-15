@@ -1,7 +1,7 @@
 import { Channel, Connection } from 'amqplib';
 
 import EventAsyncEmitter from './helper/eventAsyncEmitter';
-import ShutdownHandler from './helper/shutdownHandler';
+import CloseHandler from './helper/closeHandler';
 
 import PublisherService from './service/publisher';
 import AbstractService from './service/service';
@@ -14,7 +14,7 @@ type Events = 'close';
 export default class Instance extends EventAsyncEmitter<Events> {
   readonly log: loggerType;
 
-  readonly shutdownHandler: ShutdownHandler;
+  readonly closeHandler: CloseHandler;
 
   readonly services: servicesType = new Map();
 
@@ -27,8 +27,7 @@ export default class Instance extends EventAsyncEmitter<Events> {
   constructor(log: loggerType, readonly connection: Connection, readonly channel: Channel) {
     super();
 
-    this.shutdownHandler = new ShutdownHandler();
-    this.shutdownHandler.initEvents();
+    this.closeHandler = new CloseHandler();
 
     this.log = log.child({ lib: 'amqp' });
   }
@@ -67,8 +66,8 @@ export default class Instance extends EventAsyncEmitter<Events> {
       await this.channel.close();
     });
 
-    this.shutdownHandler.on('shutdown', async () => {
-      await this.channel.close();
+    this.closeHandler.on('close', () => {
+      this.channel.close();
     });
   }
 
@@ -150,6 +149,6 @@ export default class Instance extends EventAsyncEmitter<Events> {
 
     await Promise.all(promises);
 
-    await this.shutdownHandler.activation();
+    this.closeHandler.close();
   }
 }

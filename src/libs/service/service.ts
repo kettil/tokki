@@ -1,6 +1,6 @@
 import { Channel, ConsumeMessage } from 'amqplib';
 
-import ShutdownHandler from '../helper/shutdownHandler';
+import CloseHandler from '../helper/closeHandler';
 
 import Instance from '../instance';
 
@@ -17,7 +17,7 @@ export default class Service<PayloadType extends {} = objectType> {
 
   protected readonly services: servicesType;
 
-  protected readonly shutdownHandler: ShutdownHandler;
+  protected readonly closeHandler: CloseHandler;
 
   /**
    *
@@ -28,7 +28,7 @@ export default class Service<PayloadType extends {} = objectType> {
   constructor(readonly log: loggerType, instance: Instance, readonly name: string, readonly error?: Service) {
     this.channel = instance.channel;
     this.services = instance.services;
-    this.shutdownHandler = instance.shutdownHandler;
+    this.closeHandler = instance.closeHandler;
 
     this.consumerQueue = name;
   }
@@ -121,7 +121,7 @@ export default class Service<PayloadType extends {} = objectType> {
               logChild.info({ payload }, '[AMQP] Job completed successfully.');
 
               await this.channel.ack(message);
-              await this.shutdownHandler.emit('finish', this.name);
+              this.closeHandler.finish(this.name);
             },
 
             discard: async () => {
@@ -130,7 +130,7 @@ export default class Service<PayloadType extends {} = objectType> {
               logChild.info({ payload }, '[AMQP] Job has failed');
 
               await this.channel.nack(message, false, false);
-              await this.shutdownHandler.emit('finish', this.name);
+              this.closeHandler.finish(this.name);
             },
 
             defer: async () => {
@@ -139,7 +139,7 @@ export default class Service<PayloadType extends {} = objectType> {
               logChild.info({ payload }, '[AMQP] Job is requeue.');
 
               await this.channel.nack(message, false, true);
-              await this.shutdownHandler.emit('finish', this.name);
+              this.closeHandler.finish(this.name);
             },
 
             write: async (name: string, data: any) => {
@@ -153,7 +153,7 @@ export default class Service<PayloadType extends {} = objectType> {
             },
           };
 
-          await this.shutdownHandler.emit('start', this.name);
+          this.closeHandler.start(this.name);
 
           await consumer(parsedMessage);
 
@@ -182,7 +182,7 @@ export default class Service<PayloadType extends {} = objectType> {
       log.error({ err }, '[AMQP] Job has an error.');
 
       await this.channel.nack(message, false, false);
-      await this.shutdownHandler.emit('finish', this.name);
+      this.closeHandler.finish(this.name);
 
       if (this.error) {
         await this.error.send({
