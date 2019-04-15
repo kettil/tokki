@@ -36,17 +36,23 @@ export default class Service<PayloadType extends {} = objectType> {
   /**
    *
    */
-  async initializeGlobal() {}
+  async initializeGlobal() {
+    // dummy
+  }
 
   /**
    *
    */
-  async initializeSender() {}
+  async initializeSender() {
+    // dummy
+  }
 
   /**
    *
    */
-  async initializeConsumer() {}
+  async initializeConsumer() {
+    // dummy
+  }
 
   /**
    *
