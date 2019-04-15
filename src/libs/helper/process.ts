@@ -20,8 +20,8 @@ export const processExit = (exitCode = 0, delay = 2000) => {
  */
 export const processEvent = (signals: NodeJS.Signals[], trigger: processTriggerType) => {
   signals.forEach((signal) => {
-    process.on(signal, (signal) => {
-      trigger({ signal });
+    process.on(signal, (status) => {
+      trigger({ signal: status });
     });
   });
 
