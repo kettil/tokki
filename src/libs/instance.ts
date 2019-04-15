@@ -1,7 +1,7 @@
 import { Channel, Connection } from 'amqplib';
 
-import EventAsyncEmitter from './helper/eventAsyncEmitter';
 import CloseHandler from './helper/closeHandler';
+import EventAsyncEmitter from './helper/eventAsyncEmitter';
 
 import PublisherService from './service/publisher';
 import AbstractService from './service/service';
