@@ -1,4 +1,3 @@
-//
 import { connect } from './libs/connect';
 import { processExit, processEvent } from './libs/helper/process';
 
