@@ -6,8 +6,8 @@ const amqpUrl = `amqp://${amqpUser}:${amqpPassword}@${amqpHost}:${amqpPort}`;
 
 const mockProcessExit = jest.spyOn(process, 'exit').mockImplementation();
 
-const mockLogError = jest.fn(console.log);
-const mockLogFatal = jest.fn(console.log);
+const mockLogError = jest.fn(console.log); // tslint:disable-line: no-console
+const mockLogFatal = jest.fn(console.log); // tslint:disable-line: no-console
 
 import Instance from '../../src/libs/instance';
 import Publisher from '../../src/libs/service/publisher';
@@ -19,11 +19,11 @@ import { consumerDataType } from '../../src/libs/types';
 
 jest.setTimeout(10000);
 
-const delay = (delay: number) => {
+const delay = (ms: number) => {
   return new Promise((resolve) => {
     setTimeout(() => {
       resolve();
-    }, delay);
+    }, ms);
   });
 };
 
@@ -38,8 +38,6 @@ describe('Functional Testing', () => {
       child: () => log,
       debug: () => {}, // tslint:disable-line: no-empty
       info: () => {}, // tslint:disable-line: no-empty
-      //debug: console.log,
-      //info: console.log,
       error: mockLogError,
       fatal: mockLogFatal,
     } as any;
