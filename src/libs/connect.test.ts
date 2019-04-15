@@ -8,9 +8,10 @@ jest.mock('amqplib', () => ({ connect: mockAmqpConnect }));
 jest.mock('./instance');
 jest.mock('./helper/process');
 
-import connect from './connect';
-import Instance from './instance';
 import { processExit } from './helper/process';
+import Instance from './instance';
+
+import connect from './connect';
 
 /**
  *
