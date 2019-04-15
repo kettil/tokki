@@ -1,4 +1,5 @@
 import { Channel, ConsumeMessage } from 'amqplib';
+import Joi from 'joi';
 
 import CloseHandler from '../helper/closeHandler';
 
@@ -79,8 +80,9 @@ export default class Service<PayloadType extends {} = objectType> {
    * If a consumer already exists, it is replaced by the new consumer.
    *
    * @param consumer
+   * @param schema
    */
-  async setConsumer(consumer: consumerType<PayloadType>) {
+  async setConsumer(consumer: consumerType<PayloadType>, schema?: Joi.ObjectSchema) {
     if (!this.isInitialized.global) {
       await this.initializeGlobal();
       this.isInitialized.global = true;
@@ -95,9 +97,13 @@ export default class Service<PayloadType extends {} = objectType> {
     // If a consumer exists, it is deactivated.
     await this.cancel();
 
-    const { consumerTag } = await this.channel.consume(this.consumerQueue, await this.createConsumer(consumer), {
-      noAck: false,
-    });
+    const { consumerTag } = await this.channel.consume(
+      this.consumerQueue,
+      await this.createConsumer(consumer, schema),
+      {
+        noAck: false,
+      },
+    );
 
     this.consumerTag = consumerTag;
   }
@@ -106,14 +112,17 @@ export default class Service<PayloadType extends {} = objectType> {
    *
    * @param consumer
    */
-  async createConsumer(consumer: consumerType<PayloadType>) {
+  async createConsumer(consumer: consumerType<PayloadType>, schema?: Joi.ObjectSchema) {
     return async (message: ConsumeMessage | null) => {
       if (message) {
         const logChild = this.log.child({ id: message.properties.messageId });
         try {
-          const payload = JSON.parse(message.content.toString('utf8'));
+          this.closeHandler.start(this.name);
 
-          logChild.info({ payload }, '[AMQP] New job is started.');
+          const content: PayloadType = JSON.parse(message.content.toString('utf8'));
+          const payload = schema ? await schema.validate(content, { stripUnknown: true, abortEarly: false }) : content;
+
+          logChild.info({ payload: content }, '[AMQP] New job is started.');
 
           let isFinalized = false;
 
@@ -158,8 +167,6 @@ export default class Service<PayloadType extends {} = objectType> {
               await service.send(data);
             },
           };
-
-          this.closeHandler.start(this.name);
 
           await consumer(parsedMessage);
 
