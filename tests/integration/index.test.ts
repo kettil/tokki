@@ -110,7 +110,7 @@ describe('Integration Testing', () => {
     expect(mockAmqpChannelOn.mock.calls.length).toBe(2);
   });
 
-  const serviceValues: ['worker' | 'publisher', any, string][] = [
+  const serviceValues: Array<['worker' | 'publisher', any, string]> = [
     ['worker', Worker, 'direct'],
     ['publisher', Publisher, 'fanout'],
   ];
@@ -118,7 +118,7 @@ describe('Integration Testing', () => {
   /**
    *
    */
-  test.each(serviceValues)('it should be create a service when %s() is called', async (type, Service) => {
+  test.each(serviceValues)('it should be create a service when %s() is called', async (type, ServiceType) => {
     const instance = await connect(
       log,
       'rabbitmq-url',
@@ -126,7 +126,7 @@ describe('Integration Testing', () => {
 
     const service = await instance[type]('service-queue');
 
-    expect(service).toBeInstanceOf(Service);
+    expect(service).toBeInstanceOf(ServiceType);
 
     expect(mockLogError.mock.calls.length).toBe(0);
     expect(mockLogFatal.mock.calls.length).toBe(0);
@@ -172,7 +172,7 @@ describe('Integration Testing', () => {
   /**
    *
    */
-  describe.each(serviceValues)('Check the %s service', (type, Service, exchangeType) => {
+  describe.each(serviceValues)('Check the %s service', (type, ServiceType, exchangeType) => {
     let instance: Instance;
     let service: Service;
 
@@ -192,8 +192,6 @@ describe('Integration Testing', () => {
      *
      */
     test('it should be call amqp publish() when job is created', async () => {
-      const payload = { a: 42 };
-
       await service.send({ ...payload });
 
       expect(mockAmqpAssertExchange.mock.calls.length).toBe(1);
@@ -216,14 +214,14 @@ describe('Integration Testing', () => {
      *
      */
     test('it should be call amqp consume() when consumer is added', async () => {
-      const queueName = type === 'publisher' ? 'randome-queue-name' : type + '-queue';
+      const queueNameInternal = type === 'publisher' ? 'randome-queue-name' : type + '-queue';
       const mockConsumer = jest.fn();
 
       await service.setConsumer(mockConsumer);
 
       expect(mockAmqpPublish.mock.calls.length).toBe(0);
       expect(mockAmqpConsume.mock.calls.length).toBe(1);
-      expect(mockAmqpConsume.mock.calls[0]).toEqual([queueName, expect.any(Function), { noAck: false }]);
+      expect(mockAmqpConsume.mock.calls[0]).toEqual([queueNameInternal, expect.any(Function), { noAck: false }]);
       expect(mockConsumer.mock.calls.length).toBe(0);
 
       expect(mockLogError.mock.calls.length).toBe(0);
@@ -324,7 +322,7 @@ describe('Integration Testing', () => {
         Buffer.from(
           JSON.stringify({
             queue: type + '-queue-2',
-            payload: payload,
+            payload,
             name: error.name,
             message: error.message,
             stack: error.stack ? error.stack.split('\n') : [],
