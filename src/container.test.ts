@@ -7,7 +7,7 @@ jest.mock('./libs/connect');
 jest.mock('./libs/helper/process');
 
 import connect from './libs/connect';
-import { processExit, processEvent } from './libs/helper/process';
+import { processEvent, processExit } from './libs/helper/process';
 
 import container from './container';
 
