@@ -8,6 +8,11 @@ export type servicesType = Map<string, Service>;
 /**
  *
  */
+export type objectType = { [key: string]: any };
+
+/**
+ *
+ */
 export type consumerDataType<Payload> = {
   log: loggerType;
   payload: Payload;
@@ -16,11 +21,6 @@ export type consumerDataType<Payload> = {
   defer: () => Promise<void>;
   write: (name: string, payload: objectType) => Promise<void>;
 };
-
-/**
- *
- */
-export type objectType = { [key: string]: any };
 
 /**
  *
@@ -65,7 +65,7 @@ export type loggerType = {
   error: InterfaceLog;
   fatal: InterfaceLog;
 
-  child: (data?: { [k: string]: any }) => loggerType;
+  child: (data?: objectType) => loggerType;
 
   [k: string]: any;
 };
