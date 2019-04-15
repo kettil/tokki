@@ -1,5 +1,5 @@
 import { connect } from './libs/connect';
-import { processExit, processEvent } from './libs/helper/process';
+import { processEvent, processExit } from './libs/helper/process';
 
 import { loggerType } from './libs/types';
 
