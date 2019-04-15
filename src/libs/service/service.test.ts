@@ -12,6 +12,8 @@ const mockLogInfo = jest.fn();
 const mockLogError = jest.fn();
 const mockLogFatal = jest.fn();
 
+import Joi from 'joi';
+
 import Service from './service';
 
 /**
@@ -357,6 +359,72 @@ describe('Check the class Service', () => {
 
       expect(mockLogError.mock.calls.length).toBe(1);
       expect(mockLogError.mock.calls[0]).toEqual([{ err: new Error(errorMessage) }, '[AMQP] Job has an error.']);
+    });
+
+    /**
+     *
+     */
+    test('it should be payload validate when a joi schema is delivered', async () => {
+      const mockWorker = jest.fn(async (d) => {
+        d.next();
+      });
+      const payload = { a: 'z', b: 42, t: true };
+      const message = { content: Buffer.from(JSON.stringify(payload)), properties: { messageId: '13579' } };
+
+      const schema = Joi.object().keys({
+        a: Joi.string(),
+        b: Joi.number(),
+      });
+
+      await service.setConsumer(mockWorker, schema);
+
+      expect(mockChannelConsume.mock.calls.length).toBe(1);
+      expect(mockChannelConsume.mock.calls[0]).toEqual(['test-queue', expect.any(Function), { noAck: false }]);
+
+      const consumer: any = mockChannelConsume.mock.calls[0][1 as any];
+
+      await consumer(message);
+
+      expect(mockWorker.mock.calls.length).toBe(1);
+      expect(mockWorker.mock.calls[0][0].payload).toEqual({ a: 'z', b: 42 });
+    });
+
+    /**
+     *
+     */
+    test('it should be throw an error when a joi schema is delivered and payload is invalidate', async () => {
+      const mockWorker = jest.fn();
+      const payload = { a: 'z', b: 42, t: true };
+      const message = { content: Buffer.from(JSON.stringify(payload)), properties: { messageId: '13579' } };
+
+      const schema = Joi.object().keys({
+        a: Joi.number(),
+        b: Joi.number(),
+      });
+
+      await service.setConsumer(mockWorker, schema);
+
+      expect(mockChannelConsume.mock.calls.length).toBe(1);
+      expect(mockChannelConsume.mock.calls[0]).toEqual(['test-queue', expect.any(Function), { noAck: false }]);
+
+      const consumer: any = mockChannelConsume.mock.calls[0][1 as any];
+
+      await consumer(message);
+
+      expect(mockWorker.mock.calls.length).toBe(0);
+
+      expect(mockCloseHandlerStart.mock.calls.length).toBe(1);
+      expect(mockCloseHandlerStart.mock.calls[0]).toEqual([name]);
+      expect(mockCloseHandlerFinish.mock.calls.length).toBe(1);
+      expect(mockCloseHandlerFinish.mock.calls[0]).toEqual([name]);
+
+      expect(mockChannelNack.mock.calls.length).toBe(1);
+      expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);
+
+      expect(mockLogError.mock.calls.length).toBe(1);
+      expect(mockLogError.mock.calls[0][0].err.name).toBe('ValidationError');
+      expect(mockLogError.mock.calls[0][0].err.message).toBe('child "a" fails because ["a" must be a number]');
+      expect(mockLogError.mock.calls[0][1]).toBe('[AMQP] Job has an error.');
     });
 
     /**
