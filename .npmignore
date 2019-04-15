@@ -6,15 +6,14 @@ tests
 
 # files
 .editorconfig
-.env
 .gitignore
 .gitlab-ci.yml
 .prettierignore
 .prettierrc
 docker-compose.yml
 jest.ci.js
-jest.functional.js
-jest.integration.js
+jest.fu.js
+jest.in.js
 jest.json
 tsconfig.build.json
 tsconfig.json
