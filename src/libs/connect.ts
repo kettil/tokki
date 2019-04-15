@@ -1,7 +1,7 @@
 import amqp from 'amqplib';
 
-import Instance from './instance';
 import { processExit } from './helper/process';
+import Instance from './instance';
 
 import { loggerType } from './types';
 
