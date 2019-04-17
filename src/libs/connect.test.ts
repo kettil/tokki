@@ -139,7 +139,7 @@ describe('Check the function connect()', () => {
     expect(mockLogFatal.mock.calls[0]).toEqual([{ err }, '[AMQP] Could not create a channel.']);
 
     expect((processExit as jest.Mock).mock.calls.length).toBe(1);
-    expect((processExit as jest.Mock).mock.calls[0]).toEqual([1, 1000]);
+    expect((processExit as jest.Mock).mock.calls[0]).toEqual([1, 250]);
 
     expect(mockAmqpConnect.mock.calls.length).toBe(1);
     expect(mockAmqpConnect.mock.calls[0]).toEqual(['rabbitmq-url', {}]);
