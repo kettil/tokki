@@ -14,7 +14,9 @@ export const connect = async (log: loggerType, url: string, prefetch: number = 1
   } catch (err) {
     log.fatal({ err }, `[AMQP] Could not connect to ${url}.`);
 
-    return (await processExit(1, 250)) as any;
+    await processExit(1, 250);
+
+    return {} as any;
   }
   log.info(`[AMQP] Connection has been established.`);
 
@@ -25,7 +27,9 @@ export const connect = async (log: loggerType, url: string, prefetch: number = 1
 
     await connection.close();
 
-    return (await processExit(1, 1000)) as any;
+    await processExit(1, 250);
+
+    return {} as any;
   }
   log.info(`[AMQP] Channel has been created.`);
 
