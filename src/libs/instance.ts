@@ -14,8 +14,6 @@ type Events = 'close';
 export default class Instance extends EventAsyncEmitter<Events> {
   readonly log: loggerType;
 
-  readonly closeHandler: CloseHandler;
-
   readonly services: servicesType = new Map();
 
   /**
@@ -24,10 +22,13 @@ export default class Instance extends EventAsyncEmitter<Events> {
    * @param connection
    * @param channel
    */
-  constructor(log: loggerType, readonly connection: Connection, readonly channel: Channel) {
+  constructor(
+    log: loggerType,
+    readonly connection: Connection,
+    readonly channel: Channel,
+    readonly closeHandler: CloseHandler = new CloseHandler(),
+  ) {
     super();
-
-    this.closeHandler = new CloseHandler();
 
     this.log = log.child({ lib: 'amqp' });
   }
