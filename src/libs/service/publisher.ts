@@ -21,4 +21,13 @@ export default class Publisher<PayloadType extends {} = objectType> extends Serv
 
     await this.channel.bindQueue(this.consumerQueue, this.name, '', {});
   }
+
+  /**
+   *
+   * @param payload
+   * @param options
+   */
+  async send(payload: PayloadType) {
+    return await super.send(payload);
+  }
 }

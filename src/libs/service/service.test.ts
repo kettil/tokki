@@ -1,3 +1,5 @@
+const mockDateNow = jest.spyOn(Date, 'now').mockImplementation();
+
 const mockChannelPublish = jest.fn();
 const mockChannelConsume = jest.fn(() => Promise.resolve({ consumerTag: 'abcdef' }));
 const mockChannelCancel = jest.fn();
@@ -93,6 +95,18 @@ describe('Check the class Service', () => {
    *
    */
   describe('Checks functions directly', () => {
+    /**
+     *
+     */
+    test.each([[undefined, undefined], [42, undefined], [1234567890123, 1234567890123]])(
+      'it should be return a timestamp or undefined when function is called with %p',
+      (value, expected) => {
+        const result = service.getTimestamp(value);
+
+        expect(result).toBe(expected);
+      },
+    );
+
     /**
      *
      */
@@ -201,6 +215,8 @@ describe('Check the class Service', () => {
      *
      */
     test('it should be publish when function send() is called', async () => {
+      mockDateNow.mockReturnValueOnce(1234567890123);
+
       const mockGlobal = jest.fn();
       const mockSender = jest.fn();
       const payload = {
@@ -220,7 +236,7 @@ describe('Check the class Service', () => {
         'test-queue',
         '',
         Buffer.from(JSON.stringify(payload), 'utf8'),
-        { persistent: true },
+        { persistent: true, priority: undefined, timestamp: 1234567890123 },
       ]);
     });
 
@@ -228,6 +244,9 @@ describe('Check the class Service', () => {
      *
      */
     test('it should be publish when function send() is called twice', async () => {
+      mockDateNow.mockReturnValueOnce(1234567890123);
+      mockDateNow.mockReturnValueOnce(1987654321098);
+
       const mockGlobal = jest.fn();
       const mockSender = jest.fn();
 
@@ -244,13 +263,13 @@ describe('Check the class Service', () => {
         'test-queue',
         '',
         Buffer.from(JSON.stringify({ a: 1 }), 'utf8'),
-        { persistent: true },
+        { persistent: true, priority: undefined, timestamp: 1234567890123 },
       ]);
       expect(mockChannelPublish.mock.calls[1]).toEqual([
         'test-queue',
         '',
         Buffer.from(JSON.stringify({ a: 2 }), 'utf8'),
-        { persistent: true },
+        { persistent: true, priority: undefined, timestamp: 1987654321098 },
       ]);
     });
   });
@@ -459,6 +478,8 @@ describe('Check the class Service', () => {
           await data.next();
         });
 
+        message.properties.timestamp = 9876543210987;
+
         await consumer(message);
 
         expect(mockCloseHandlerStart.mock.calls.length).toBe(1);
@@ -470,6 +491,7 @@ describe('Check the class Service', () => {
         expect(mockWorker.mock.calls[0]).toEqual([
           {
             log,
+            created: expect.any(Date),
             payload,
             next: expect.any(Function),
             discard: expect.any(Function),

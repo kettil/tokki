@@ -5,7 +5,7 @@ import CloseHandler from '../helper/closeHandler';
 
 import Instance from '../instance';
 
-import { consumerDataType, consumerType, loggerType, objectType, servicesType } from '../types';
+import { consumerDataType, consumerType, loggerType, publishOptionsType, objectType, servicesType } from '../types';
 
 export default class Service<PayloadType extends {} = objectType> {
   protected isInitialized = { global: false, consumer: false, sender: false };
@@ -58,8 +58,9 @@ export default class Service<PayloadType extends {} = objectType> {
   /**
    *
    * @param payload
+   * @param options
    */
-  async send(payload: PayloadType) {
+  async send(payload: PayloadType, { priority }: publishOptionsType = {}) {
     if (!this.isInitialized.global) {
       await this.initializeGlobal();
       this.isInitialized.global = true;
@@ -71,7 +72,11 @@ export default class Service<PayloadType extends {} = objectType> {
 
     this.log.info({ payload }, `[AMQP] New payload for queue "${this.name}".`);
 
-    this.channel.publish(this.name, '', Buffer.from(JSON.stringify(payload), 'utf8'), { persistent: true });
+    this.channel.publish(this.name, '', Buffer.from(JSON.stringify(payload), 'utf8'), {
+      priority,
+      persistent: true,
+      timestamp: Date.now(),
+    });
   }
 
   /**
@@ -100,9 +105,7 @@ export default class Service<PayloadType extends {} = objectType> {
     const { consumerTag } = await this.channel.consume(
       this.consumerQueue,
       await this.createConsumer(consumer, schema),
-      {
-        noAck: false,
-      },
+      { noAck: false },
     );
 
     this.consumerTag = consumerTag;
@@ -115,7 +118,9 @@ export default class Service<PayloadType extends {} = objectType> {
   async createConsumer(consumer: consumerType<PayloadType>, schema?: Joi.ObjectSchema) {
     return async (message: ConsumeMessage | null) => {
       if (message) {
-        const logChild = this.log.child({ id: message.properties.messageId });
+        const timestamp = this.getTimestamp(message.properties.timestamp);
+        const logChild = this.log.child({ jobId: message.properties.messageId, jobCreated: timestamp });
+
         try {
           this.closeHandler.start(this.name);
 
@@ -128,6 +133,7 @@ export default class Service<PayloadType extends {} = objectType> {
 
           const parsedMessage: consumerDataType<PayloadType> = {
             log: logChild,
+            created: timestamp ? new Date(timestamp) : undefined,
             payload,
 
             next: async () => {
@@ -220,5 +226,16 @@ export default class Service<PayloadType extends {} = objectType> {
     if (this.consumerTag) {
       await this.channel.cancel(this.consumerTag);
     }
+  }
+
+  /**
+   *
+   * @param timestmap
+   */
+  getTimestamp(timestmap: any) {
+    if (typeof timestmap === 'number' && timestmap.toString().length === 13) {
+      return timestmap;
+    }
+    return undefined;
   }
 }

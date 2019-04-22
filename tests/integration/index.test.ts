@@ -1,3 +1,5 @@
+const mockDateNow = jest.spyOn(Date, 'now').mockImplementation();
+
 const mockLogError = jest.fn();
 const mockLogFatal = jest.fn();
 const mockAmqpConnect = jest.fn();
@@ -110,9 +112,9 @@ describe('Integration Testing', () => {
     expect(mockAmqpChannelOn.mock.calls.length).toBe(2);
   });
 
-  const serviceValues: Array<['worker' | 'publisher', any, string]> = [
-    ['worker', Worker, 'direct'],
-    ['publisher', Publisher, 'fanout'],
+  const serviceValues: Array<['worker' | 'publisher', any, string, number?]> = [
+    ['worker', Worker, 'direct', 1],
+    ['publisher', Publisher, 'fanout', undefined],
   ];
 
   /**
@@ -172,7 +174,7 @@ describe('Integration Testing', () => {
   /**
    *
    */
-  describe.each(serviceValues)('Check the %s service', (type, ServiceType, exchangeType) => {
+  describe.each(serviceValues)('Check the %s service', (type, ServiceType, exchangeType, priority) => {
     let instance: Instance;
     let service: Service;
 
@@ -192,6 +194,8 @@ describe('Integration Testing', () => {
      *
      */
     test('it should be call amqp publish() when job is created', async () => {
+      mockDateNow.mockReturnValueOnce(1234567890123);
+
       await service.send({ ...payload });
 
       expect(mockAmqpAssertExchange.mock.calls.length).toBe(1);
@@ -203,7 +207,7 @@ describe('Integration Testing', () => {
         type + '-queue',
         '',
         Buffer.from(JSON.stringify(payload), 'utf8'),
-        { persistent: true },
+        { persistent: true, priority: priority, timestamp: 1234567890123 },
       ]);
 
       expect(mockLogError.mock.calls.length).toBe(0);
@@ -291,6 +295,8 @@ describe('Integration Testing', () => {
      *
      */
     test('it should be throw an error and forwards this when a new job is created', async () => {
+      mockDateNow.mockReturnValueOnce(1987654321098);
+
       expect.assertions(9);
 
       const service2 = await instance[type](type + '-queue-2', service);
@@ -328,7 +334,7 @@ describe('Integration Testing', () => {
             stack: error.stack ? error.stack.split('\n') : [],
           }),
         ),
-        { persistent: true },
+        { persistent: true, priority: priority, timestamp: 1987654321098 },
       ]);
     });
   });

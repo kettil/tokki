@@ -13,8 +13,16 @@ export type objectType = { [key: string]: any };
 /**
  *
  */
+export type publishOptionsType = {
+  priority?: number;
+};
+
+/**
+ *
+ */
 export type consumerDataType<Payload> = {
   log: loggerType;
+  created?: Date;
   payload: Payload;
   next: () => Promise<void>;
   discard: () => Promise<void>;

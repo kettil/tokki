@@ -1,7 +1,10 @@
+const mockDateNow = jest.spyOn(Date, 'now').mockImplementation();
+
 const mockChannelAssertExchange = jest.fn();
 const mockChannelAssertQueue = jest.fn();
 const mockChannelBindQueue = jest.fn();
 const mockChannelConsume = jest.fn();
+const mockChannelSend = jest.fn();
 
 import Publisher from './publisher';
 
@@ -26,6 +29,7 @@ describe('Check the class Publisher', () => {
       assertQueue: mockChannelAssertQueue,
       bindQueue: mockChannelBindQueue,
       consume: mockChannelConsume,
+      publish: mockChannelSend,
     };
 
     log = {
@@ -83,6 +87,23 @@ describe('Check the class Publisher', () => {
       expect(mockChannelAssertQueue.mock.calls[0]).toEqual(['', { autoDelete: true, exclusive: true }]);
       expect(mockChannelBindQueue.mock.calls.length).toBe(1);
       expect(mockChannelBindQueue.mock.calls[0]).toEqual([randomQueueName, name, '', {}]);
+    });
+
+    /**
+     *
+     */
+    test('it should be publish when function send() is called', async () => {
+      mockDateNow.mockReturnValueOnce(1234567890098);
+
+      await publisher.send({ a: 'z' });
+
+      expect(mockChannelSend.mock.calls.length).toBe(1);
+      expect(mockChannelSend.mock.calls[0]).toEqual([
+        'test-queue',
+        '',
+        Buffer.from(JSON.stringify({ a: 'z' })),
+        { persistent: true, priority: undefined, timestamp: 1234567890098 },
+      ]);
     });
   });
 });
