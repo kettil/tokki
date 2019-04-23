@@ -7,9 +7,8 @@ image: node:latest
 # ## Project settings
 #
 # Settings -> Repository -> Protected Branches
-# - master      (merge: only Maintainers | push: no one)
-# - master-v*   (merge: only Maintainers | push: no one)
-# - release-v*  (merge: only Maintainers | push: no one)
+# - master    (merge: only Maintainers | push: no one)
+# - master-v* (merge: only Maintainers | push: no one)
 #
 # Settings -> Repository -> Protected Tags
 # - v* (create: only Maintainers)
@@ -40,7 +39,6 @@ stages:
   before_script:
     - npm install
   only:
-    - /^release-v\d+(\.\d+)?$/
     - /^master-v\d+(\.\d+)?$/
     - master
     - merge_requests
@@ -180,4 +178,5 @@ publish:
     - 'npm run build'
     - 'npm publish'
   only:
-    - /^release-v\d+(\.\d+)?$/
+    - /^master-v\d+(\.\d+)?$/
+    - master
