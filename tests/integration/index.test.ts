@@ -21,9 +21,9 @@ jest.mock('amqplib', () => ({ connect: mockAmqpConnect }));
 
 import Instance from '../../src/libs/instance';
 
-import Publisher from '../../src/libs/service/publisher';
-import Service from '../../src/libs/service/service';
-import Worker from '../../src/libs/service/worker';
+import Publisher from '../../src/libs/services/publisher';
+import Service from '../../src/libs/services/service';
+import Worker from '../../src/libs/services/worker';
 
 import connect from '../../src/index';
 
@@ -207,7 +207,7 @@ describe('Integration Testing', () => {
         type + '-queue',
         '',
         Buffer.from(JSON.stringify(payload), 'utf8'),
-        { persistent: true, priority: priority, timestamp: 1234567890123 },
+        { persistent: true, priority, timestamp: 1234567890123 },
       ]);
 
       expect(mockLogError.mock.calls.length).toBe(0);
@@ -334,7 +334,7 @@ describe('Integration Testing', () => {
             stack: error.stack ? error.stack.split('\n') : [],
           }),
         ),
-        { persistent: true, priority: priority, timestamp: 1987654321098 },
+        { persistent: true, priority, timestamp: 1987654321098 },
       ]);
     });
   });
