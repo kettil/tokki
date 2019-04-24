@@ -1,12 +1,12 @@
 import { amqpUrl, delay } from '../config';
 
-//const mockLogError = jest.fn(console.log); // tslint:disable-line: no-console
-//const mockLogFatal = jest.fn(console.log); // tslint:disable-line: no-console
+// const mockLogError = jest.fn(console.log); // tslint:disable-line: no-console
+// const mockLogFatal = jest.fn(console.log); // tslint:disable-line: no-console
 const mockLogError = jest.fn();
 const mockLogFatal = jest.fn();
 
 import Instance from '../../../src/libs/instance';
-import Worker from '../../../src/libs/service/worker';
+import Worker from '../../../src/libs/services/worker';
 
 import connect from '../../../src/index';
 
@@ -96,7 +96,7 @@ describe('Check the service worker', () => {
 
     type payloadType = { z: string; d: number };
 
-    const consumer = async (data: consumerDataType<payloadType>) => {
+    const consumer1 = async (data: consumerDataType<payloadType>) => {
       mockPayload(data.payload);
 
       await delay(data.payload.d);
@@ -107,8 +107,8 @@ describe('Check the service worker', () => {
     const worker1 = await instance.createService<payloadType>(Worker, queueName, undefined, queueName + '-1');
     const worker2 = await instance.createService<payloadType>(Worker, queueName, undefined, queueName + '-2');
 
-    await worker1.setConsumer(consumer);
-    await worker2.setConsumer(consumer);
+    await worker1.setConsumer(consumer1);
+    await worker2.setConsumer(consumer1);
 
     worker.send({ z: 'hi', d: 300 });
     worker.send({ z: 'hello', d: 500 });
