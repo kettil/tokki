@@ -28,6 +28,6 @@ export default class Publisher<PayloadType extends {} = objectType> extends Serv
    * @param options
    */
   async send(payload: PayloadType) {
-    return await super.send(payload);
+    await super.send(payload);
   }
 }
