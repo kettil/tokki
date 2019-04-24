@@ -1,4 +1,4 @@
-import Service from './service/service';
+import Service from './services/service';
 
 /**
  *
