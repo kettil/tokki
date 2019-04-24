@@ -3,9 +3,9 @@ import { Channel, Connection } from 'amqplib';
 import CloseHandler from './helper/closeHandler';
 import EventAsyncEmitter from './helper/eventAsyncEmitter';
 
-import PublisherService from './service/publisher';
-import AbstractService from './service/service';
-import WorkerService from './service/worker';
+import PublisherService from './services/publisher';
+import AbstractService from './services/service';
+import WorkerService from './services/worker';
 
 import { loggerType, objectType, servicesType } from './types';
 
