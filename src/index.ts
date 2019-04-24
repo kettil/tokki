@@ -1,7 +1,7 @@
 import _container from './container';
-import _Publisher from './libs/service/publisher';
-import _Service from './libs/service/service';
-import _Worker from './libs/service/worker';
+import _Publisher from './libs/services/publisher';
+import _Service from './libs/services/service';
+import _Worker from './libs/services/worker';
 
 import connect from './libs/connect';
 
