@@ -5,7 +5,7 @@ import CloseHandler from '../helper/closeHandler';
 
 import Instance from '../instance';
 
-import { consumerDataType, consumerType, loggerType, publishOptionsType, objectType, servicesType } from '../types';
+import { consumerDataType, consumerType, loggerType, objectType, publishOptionsType, servicesType } from '../types';
 
 export default class Service<PayloadType extends {} = objectType> {
   protected isInitialized = { global: false, consumer: false, sender: false };
