@@ -2,8 +2,6 @@
 var jest = {
   roots: ['<rootDir>/tests/integration/'],
 
-  // enabled coverage
-  collectCoverage: true,
   // only text coverage
   coverageReporters: ['text-summary'],
   // no output
