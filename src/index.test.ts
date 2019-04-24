@@ -1,8 +1,8 @@
 import container from './container';
 import connect from './libs/connect';
-import Publisher from './libs/service/publisher';
-import Service from './libs/service/service';
-import Worker from './libs/service/worker';
+import Publisher from './libs/services/publisher';
+import Service from './libs/services/service';
+import Worker from './libs/services/worker';
 
 import index, * as indexObject from './index';
 
