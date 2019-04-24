@@ -5,7 +5,6 @@
     "cyclomatic-complexity": [true, 15],
     "interface-over-type-literal": false,
     "interface-name": [true, "never-prefix"],
-    "no-any": true,
     "linebreak-style": [true, "LF"],
     "object-literal-sort-keys": false,
     "quotemark": [true, "single", "jsx-double"],
