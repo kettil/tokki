@@ -165,17 +165,17 @@ publish:
     - 'git config --global user.email "${GITLAB_USER_EMAIL}"'
     - 'git remote set-url origin "${DEPLOY_REMOTE}"'
 
+    - 'npm install'
+    - 'npm run build'
+
     - 'npm version patch -m "Release of version v%s"'
     - 'git push -u origin "HEAD:${CI_COMMIT_REF_NAME}"'
     - 'git push -u origin --tags'
 
     - 'cat package.json | sed -e "s|\(\"name\": \"\)[a-zA-Z0-9_-]*\(\",\)|\1@${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}\2|" > p.json && mv p.json package.json'
     - 'cat package.json | sed -e "s|\"private\": true,|${DEPLOY_NPM_PUBLISH}|" > p.json && mv p.json package.json'
-
     - 'echo "${CI_API_V4_URL#*:}/projects/${CI_PROJECT_ID}/packages/npm/:_authToken=${DEPLOY_AUTH_TOKEN}" > .npmrc'
 
-    - 'npm install'
-    - 'npm run build'
     - 'npm publish'
   only:
     - /^master-v\d+(\.\d+)?$/
