@@ -4,7 +4,7 @@ const mockLogError = jest.fn(console.log); // tslint:disable-line: no-console
 const mockLogFatal = jest.fn(console.log); // tslint:disable-line: no-console
 
 import Instance from '../../../src/libs/instance';
-import Publisher from '../../../src/libs/service/publisher';
+import Publisher from '../../../src/libs/services/publisher';
 
 import connect from '../../../src/index';
 
