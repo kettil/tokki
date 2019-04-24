@@ -8,15 +8,15 @@ const mockChannelRemoveAllListeners = jest.fn();
 const mockServiceError = jest.fn();
 
 jest.mock('./helper/closeHandler');
-jest.mock('./service/service');
-jest.mock('./service/worker');
-jest.mock('./service/publisher');
+jest.mock('./services/service');
+jest.mock('./services/worker');
+jest.mock('./services/publisher');
 
 import CloseHandler from './helper/closeHandler';
-import Service from './service/service';
+import Service from './services/service';
 
-import PublisherService from './service/publisher';
-import WorkerService from './service/worker';
+import PublisherService from './services/publisher';
+import WorkerService from './services/worker';
 
 import Instance from './instance';
 
