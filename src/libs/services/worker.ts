@@ -1,6 +1,6 @@
 import Service from './service';
 
-import { publishOptionsType, objectType } from '../types';
+import { objectType, publishOptionsType } from '../types';
 
 export default class Worker<PayloadType extends {} = objectType> extends Service<PayloadType> {
   /**
@@ -27,6 +27,6 @@ export default class Worker<PayloadType extends {} = objectType> extends Service
       throw new Error(`Priority "${options.priority}" is outside the number range [1-10].`);
     }
 
-    return await super.send(payload, options);
+    await super.send(payload, options);
   }
 }
