@@ -2,8 +2,6 @@
 var jest = {
   roots: ['<rootDir>/tests/functional/'],
 
-  // enabled coverage
-  collectCoverage: true,
   // only text coverage
   coverageReporters: ['text-summary'],
   // no output
