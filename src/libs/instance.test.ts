@@ -20,6 +20,8 @@ import WorkerService from './services/worker';
 
 import Instance from './instance';
 
+import { SubType } from './types';
+
 /**
  *
  */
@@ -284,13 +286,13 @@ describe('Check the class Instance', () => {
     /**
      *
      */
-    test.each<['worker' | 'publisher', typeof WorkerService | typeof PublisherService]>([
+    test.each<[keyof SubType<Instance, (...args: any[]) => any>, typeof WorkerService | typeof PublisherService]>([
       ['worker', WorkerService],
       ['publisher', PublisherService],
     ])('it should be return a worker when function %s() is called', async (type, ServiceClass) => {
       const name = type + '-queue-name';
 
-      const service = await instance[type](name, mockServiceError as any);
+      const service = await (instance[type] as any)(name, mockServiceError as any);
 
       expect(service).toBeInstanceOf(ServiceClass);
 
