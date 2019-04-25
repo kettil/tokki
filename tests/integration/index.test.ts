@@ -27,7 +27,7 @@ import Worker from '../../src/libs/services/worker';
 
 import connect from '../../src/index';
 
-import { consumerDataType } from '../../src/libs/types';
+import { consumerDataType, SubType } from '../../src/libs/types';
 
 describe('Integration Testing', () => {
   let log: any;
@@ -112,7 +112,7 @@ describe('Integration Testing', () => {
     expect(mockAmqpChannelOn.mock.calls.length).toBe(2);
   });
 
-  const serviceValues: Array<['worker' | 'publisher', any, string, number?]> = [
+  const serviceValues: Array<[keyof SubType<Instance, (...args: any[]) => any>, any, string, number?]> = [
     ['worker', Worker, 'direct', 1],
     ['publisher', Publisher, 'fanout', undefined],
   ];
@@ -126,7 +126,7 @@ describe('Integration Testing', () => {
       'rabbitmq-url',
     );
 
-    const service = await instance[type]('service-queue');
+    const service = await (instance[type] as any)('service-queue');
 
     expect(service).toBeInstanceOf(ServiceType);
 
@@ -187,7 +187,7 @@ describe('Integration Testing', () => {
         'rabbitmq-url',
       );
 
-      service = await instance[type](type + '-queue');
+      service = await (instance[type] as any)(type + '-queue');
     });
 
     /**
@@ -299,7 +299,7 @@ describe('Integration Testing', () => {
 
       expect.assertions(9);
 
-      const service2 = await instance[type](type + '-queue-2', service);
+      const service2 = await (instance[type] as any)(type + '-queue-2', service);
       const error = new Error('Consumer Error with forwading');
 
       const mockConsumer = jest.fn(async (data: consumerDataType<any>) => {
