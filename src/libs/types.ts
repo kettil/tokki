@@ -77,3 +77,8 @@ export type loggerType = {
 
   [k: string]: any;
 };
+
+/**
+ *
+ */
+export type SubType<Base, Cond> = Pick<Base, { [Key in keyof Base]: Base[Key] extends Cond ? Key : never }[keyof Base]>;
