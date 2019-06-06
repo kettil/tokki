@@ -1,5 +1,96 @@
 image: node:latest
 
+stages:
+  - build
+  - test
+  - deploy
+
+cache:
+  key: "$CI_COMMIT_REF_SLUG"
+  policy: pull
+  paths:
+    - build/
+    - node_modules/
+
+.limiter:
+  before_script:
+    - "[ -e ./node_modules ] && echo 'node_modules from the cache' || npm ci"
+  only:
+    - /^master-v\d+(\.\d+)?$/
+    - master
+    - merge_requests
+  except:
+    refs:
+      - tags
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /^Release of version v/i
+      #- $CI_MERGE_REQUEST_TITLE =~ /^WIP:*/i
+
+build:
+  extends: .limiter
+  stage: build
+  cache:
+    key: "$CI_COMMIT_REF_SLUG"
+    policy: push
+    paths:
+      - build/
+      - node_modules/
+  script:
+    - npm run build
+
+audit:
+  extends: .limiter
+  stage: test
+  allow_failure: true
+  script:
+    - npm audit
+  only:
+    - merge_requests
+
+prettier:
+  extends: .limiter
+  stage: test
+  script:
+    - npm run prettier:ci
+  only:
+    - merge_requests
+
+lint:
+  extends: .limiter
+  stage: test
+  script:
+    - npm run lint:ci
+  only:
+    - merge_requests
+
+test-unit:
+  extends: .limiter
+  stage: test
+  script:
+    - npm run test:ci
+  coverage: '/Statements\s*:\s*(\d+(?:\.\d+)?)%/'
+
+test-integration:
+  extends: .limiter
+  stage: test
+  script:
+    - npm run test:integration:ci
+
+test-functional:
+  extends: .limiter
+  stage: test
+  variables:
+    AMQP_HOST: rabbitmq
+  services:
+    - name: rabbitmq:3
+      alias: rabbitmq
+  script:
+    - npm run test:functional:ci
+
+#
+# GitLab NPM Registry
+#
+# !! The package must have the same name as the project !!
 #
 # ToDo's
 # - Generate a SSH-key (without passphrase)
@@ -26,136 +117,26 @@ image: node:latest
 #
 # ## Links
 #
+# https://docs.gitlab.com/ee/user/project/packages/npm_registry.html
 # https://docs.gitlab.com/ee/ci/yaml/README.html
 # https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
 #
-
-stages:
-  - build
-  - test
-  - deploy
-
-.limiter:
-  before_script:
-    - npm install
-  only:
-    - /^master-v\d+(\.\d+)?$/
-    - master
-    - merge_requests
-  except:
-    refs:
-      - tags
-    variables:
-      - $CI_COMMIT_MESSAGE =~ /^Release of version v/i
-      #- $CI_MERGE_REQUEST_TITLE =~ /^WIP:*/i
-
-
-build:
-  extends: .limiter
-  stage: build
-#  cache:
-#    key: "$CI_COMMIT_REF_NAME:node_modules"
-#    paths:
-#      - node_modules/
-#    policy: push
-  script:
-#    - npm install
-    - npm run build
-
-audit:
-  extends: .limiter
-  stage: build
-  allow_failure: true
-  script:
-    - npm audit
-  only:
-    - merge_requests
-
-prettier:
-  extends: .limiter
-  stage: test
-#  cache:
-#    key: "$CI_COMMIT_REF_NAME:node_modules"
-#    paths:
-#      - node_modules/
-#    policy: pull
-  script:
-    - npm run prettier:ci
-  only:
-    - merge_requests
-
-lint:
-  extends: .limiter
-  stage: test
-#  cache:
-#    key: "$CI_COMMIT_REF_NAME:node_modules"
-#    paths:
-#      - node_modules/
-#    policy: pull
-  script:
-    - npm run lint:ci
-  only:
-    - merge_requests
-
-test-unit:
-  extends: .limiter
-  stage: test
-#  cache:
-#    key: "$CI_COMMIT_REF_NAME:node_modules"
-#    paths:
-#      - node_modules/
-#    policy: pull
-  script:
-    - npm run test:ci
-  coverage: '/Statements\s*:\s*(\d+(?:\.\d+)?)%/'
-
-test-integration:
-  extends: .limiter
-  stage: test
-#  cache:
-#    key: "$CI_COMMIT_REF_NAME:node_modules"
-#    paths:
-#      - node_modules/
-#    policy: pull
-  script:
-    - npm run test:integration:ci
-
-test-functional:
-  extends: .limiter
-  stage: test
-#  cache:
-#    key: "$CI_COMMIT_REF_NAME:node_modules"
-#    paths:
-#      - node_modules/
-#    policy: pull
-  variables:
-    AMQP_HOST: rabbitmq
-  services:
-    - name: rabbitmq:3
-      alias: rabbitmq
-  script:
-    - npm run test:functional:ci
-
-#
-# GitLab NPM Registry
-# https://docs.gitlab.com/ee/user/project/packages/npm_registry.html
-#
-publish:
+deploy:
   extends: .limiter
   stage: deploy
   variables:
-    GIT_DEPTH: 10
+    GIT_DEPTH: 2
     GIT_STRATEGY: clone
     GIT_SSH_COMMAND: 'ssh -i ~/.ssh/rsa -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o LogLevel=error'
 
     DEPLOY_AUTH_ARGS: 'grant_type=password&username=${DEPLOY_NPM_USER}&password=${DEPLOY_NPM_PASSWORD}'
     DEPLOY_NPM_PUBLISH: '\"publishConfig\": { \"registry\":\"${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/npm/\" },'
-  before_script:
+  script:
     - 'DEPLOY_HOST="$(echo "${CI_API_V4_URL}" | cut -d "/" -f3)"'
     - 'DEPLOY_REMOTE="git@${DEPLOY_HOST}:${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}"'
     - 'DEPLOY_AUTH_JSON="$(curl -s -d "${DEPLOY_AUTH_ARGS}" -X POST "https://${DEPLOY_HOST}/oauth/token")"'
     - 'DEPLOY_AUTH_TOKEN="$(echo "${DEPLOY_AUTH_JSON}" | sed -e "s|^.*access_token\":\"\([a-z0-9]*\)\".*$|\1|")"'
-  script:
+
     - 'mkdir -p ~/.ssh'
     - 'echo "$DEPLOY_SSH_KEY" | tr -d "\r" > ~/.ssh/rsa'
     - 'chmod 700 ~/.ssh'
@@ -165,8 +146,7 @@ publish:
     - 'git config --global user.email "${GITLAB_USER_EMAIL}"'
     - 'git remote set-url origin "${DEPLOY_REMOTE}"'
 
-    - 'npm install'
-    - 'npm run build'
+    - "[ -e ./build ] && echo 'build from the cache' || npm run build"
 
     - 'npm version patch -m "Release of version v%s"'
     - 'git push -u origin "HEAD:${CI_COMMIT_REF_NAME}"'

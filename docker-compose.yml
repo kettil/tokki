@@ -6,7 +6,7 @@ services:
     hostname: test-rabbit
     ports:
       - '127.0.0.1:5672:5672'
-    networks: ['test']
+    networks: ['locale']
 
 networks:
-  test:
+  locale:

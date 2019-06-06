@@ -1,12 +1,6 @@
-// expand jest config for ci
+// expand jest config for code coverage
 var jest = {
-  roots: ['<rootDir>/tests/integration/'],
-
-  // only text coverage
-  coverageReporters: ['text-summary'],
-  // no output
-  coverageDirectory: '',
-
+  coverageReporters: ['text', 'lcov'],
   coverageThreshold: {
     global: {
       branches: 25,

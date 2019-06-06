@@ -1,4 +1,4 @@
-import { amqpUrl, delay } from '../config';
+import { amqpUrl, delay } from '../helper/config';
 
 const mockLogError = jest.fn(console.log); // tslint:disable-line: no-console
 const mockLogFatal = jest.fn(console.log); // tslint:disable-line: no-console

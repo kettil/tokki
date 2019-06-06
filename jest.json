@@ -9,12 +9,13 @@
 
   "preset": "ts-jest",
   "testMatch": ["**/*.test.{js,jsx,ts,tsx}"],
-  "roots": ["<rootDir>/src/"],
+  "roots": ["<rootDir>/src/", "<rootDir>/tests/integration/", "<rootDir>/tests/functional/"],
 
   "clearMocks": true,
 
   "collectCoverageFrom": ["src/**/*.{ts,tsx,js,jsx}"],
-  "coverageReporters": ["text", "lcov"],
+  "coveragePathIgnorePatterns": ["<rootDir>/src/crawlers"],
+  "coverageReporters": ["text-summary"],
   "coverageDirectory": "coverage",
   "coverageThreshold": {
     "global": {

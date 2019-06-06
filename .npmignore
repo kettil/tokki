@@ -1,4 +1,5 @@
 # folder
+bin
 coverage
 docs
 src
@@ -8,6 +9,7 @@ tests
 .editorconfig
 .gitignore
 .gitlab-ci.yml
+.huskyrc
 .prettierignore
 .prettierrc
 docker-compose.yml

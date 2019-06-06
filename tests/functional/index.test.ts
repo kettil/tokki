@@ -1,4 +1,4 @@
-import { amqpUrl, delay } from './config';
+import { amqpUrl, delay } from './helper/config';
 
 const mockProcessExit = jest.spyOn(process, 'exit').mockImplementation();
 
