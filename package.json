@@ -53,21 +53,21 @@
   "author": "Kjell Dießel <development@kettil.de>",
   "license": "MIT",
   "devDependencies": {
-    "@types/amqplib": "^0.5.11",
-    "@types/jest": "^24.0.11",
+    "@types/amqplib": "^0.5.12",
+    "@types/jest": "^24.0.13",
     "@types/joi": "^14.3.3",
-    "@types/node": "^11.13.6",
+    "@types/node": "^12.0.0",
     "husky": "^2.1.0",
-    "jest": "^24.7.1",
+    "jest": "^24.8.0",
     "joi": "^14.3.1",
-    "prettier": "^1.17.0",
+    "prettier": "^1.18.0",
     "ts-jest": "^24.0.2",
-    "tslint": "^5.16.0",
+    "tslint": "^5.17.0",
     "tslint-config-prettier": "^1.15.0",
-    "tslint-immutable": "^5.5.2",
+    "tslint-immutable": "^6.0.0",
     "tslint-react": "^4.0.0",
     "typedoc": "^0.14.0",
-    "typescript": "^3.4.4"
+    "typescript": "^3.5.1"
   },
   "dependencies": {
     "amqplib": "^0.5.3"
