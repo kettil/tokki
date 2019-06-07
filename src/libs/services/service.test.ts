@@ -613,12 +613,10 @@ describe('Check the class Service', () => {
       (service as any).countTasks = 2;
       (service as any).consumerTag = 'test-consumer-tag';
 
-      (setTimeout as any).mockImplementation(
-        (fn: any, ms: number): any => {
-          (service as any).countTasks -= 1;
-          fn();
-        },
-      );
+      (setTimeout as any).mockImplementation((fn: any, ms: number): any => {
+        (service as any).countTasks -= 1;
+        fn();
+      });
 
       await service.cancel();
 
