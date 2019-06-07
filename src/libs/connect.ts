@@ -1,22 +1,19 @@
 import amqp from 'amqplib';
 
-import { processExit } from './helper/process';
 import Instance from './instance';
 
-import { loggerType } from './types';
+import { InterfaceLogger } from './types';
 
-export const connect = async (log: loggerType, url: string, prefetch: number = 1): Promise<Instance> => {
+export const connect = async (log: InterfaceLogger, url: string, prefetch: number = 1): Promise<Instance> => {
   let connection: amqp.Connection;
   let channel: amqp.Channel;
 
   try {
     connection = await amqp.connect(url, {});
   } catch (err) {
-    log.fatal({ err }, `[AMQP] Could not connect to ${url}.`);
+    log.fatal({ err }, `[AMQP] Could not connect to "${url.replace(/:([^@]+)@/, ':[protected]@')}".`);
 
-    await processExit(1, 250);
-
-    return {} as any;
+    throw err;
   }
   log.info(`[AMQP] Connection has been established.`);
 
@@ -27,9 +24,7 @@ export const connect = async (log: loggerType, url: string, prefetch: number = 1
 
     await connection.close();
 
-    await processExit(1, 250);
-
-    return {} as any;
+    throw err;
   }
   log.info(`[AMQP] Channel has been created.`);
 

@@ -1,20 +1,15 @@
-import { Channel, Connection } from 'amqplib';
+import { EventEmitter } from 'events';
 
-import CloseHandler from './helper/closeHandler';
-import EventAsyncEmitter from './helper/eventAsyncEmitter';
+import { Channel, Connection } from 'amqplib';
 
 import PublisherService from './services/publisher';
 import AbstractService from './services/service';
 import WorkerService from './services/worker';
 
-import { loggerType, objectType, servicesType } from './types';
+import { InterfaceLogger, objectType, servicesType } from './types';
 
-type Events = 'close';
-
-export default class Instance extends EventAsyncEmitter<Events> {
-  readonly log: loggerType;
-
-  readonly services: servicesType = new Map();
+export default class Instance extends EventEmitter {
+  protected services: servicesType = new Map();
 
   /**
    *
@@ -22,53 +17,42 @@ export default class Instance extends EventAsyncEmitter<Events> {
    * @param connection
    * @param channel
    */
-  constructor(
-    log: loggerType,
-    readonly connection: Connection,
-    readonly channel: Channel,
-    readonly closeHandler: CloseHandler = new CloseHandler(),
-  ) {
+  constructor(readonly log: InterfaceLogger, readonly connection: Connection, readonly channel: Channel) {
     super();
-
-    this.log = log.child({ lib: 'amqp' });
   }
 
   /**
    *
    */
   async initEvents() {
-    this.connection.on('close', async () => {
+    this.connection.on('close', () => {
       this.log.info('[AMQP] Connection is closed.');
 
       this.connection.removeAllListeners('close');
+
       // call the close event from this class
-      await this.emit('close');
+      this.emit('close');
     });
 
-    this.connection.on('error', async (err: any) => {
+    this.connection.on('error', (err: any) => {
       this.log.fatal({ err }, '[AMQP] A connection error has occurred.');
 
       this.connection.removeAllListeners('error');
     });
 
-    this.channel.on('close', async () => {
+    this.channel.on('close', () => {
       this.log.info('[AMQP] Channel is closed');
 
       this.channel.removeAllListeners('close');
-      // When the channel is closed, the connection is also closed.
-      await this.connection.close();
     });
 
-    this.channel.on('error', async (err: any) => {
+    this.channel.on('error', (err: any) => {
       this.log.fatal({ err }, '[AMQP] A channel error has occurred.');
 
       this.channel.removeAllListeners('error');
-      // The channel is closed.
-      await this.channel.close();
-    });
 
-    this.closeHandler.on('close', () => {
-      this.channel.close();
+      // Close the connection.
+      this.connection.close();
     });
   }
 
@@ -138,18 +122,23 @@ export default class Instance extends EventAsyncEmitter<Events> {
   }
 
   /**
-   * Calls the cancel method for all services and when all the jobs are done,
+   * Calls the cancel method for all services and when all the tasks are done,
    * the connection is closed..
    */
-  async shutdown() {
+  async close() {
     const promises: Array<Promise<void>> = [];
 
+    this.log.info(`[AMQP] Shutdown the service (count: ${this.services.size})`);
     this.services.forEach((service) => {
       promises.push(service.cancel());
     });
 
     await Promise.all(promises);
 
-    this.closeHandler.close();
+    this.log.info('[AMQP] Close the channel');
+    await this.channel.close();
+
+    this.log.info('[AMQP] Close the connection');
+    await this.connection.close();
   }
 }

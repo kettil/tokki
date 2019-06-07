@@ -5,6 +5,7 @@ const mockLogFatal = jest.fn();
 const mockAmqpConnect = jest.fn();
 const mockAmqpChannel = jest.fn();
 const mockAmqpConnectOn = jest.fn();
+const mockAmqpConnectClose = jest.fn();
 const mockAmqpChannelOn = jest.fn();
 const mockAmqpChannelClose = jest.fn();
 const mockAmqpPrefetch = jest.fn();
@@ -29,8 +30,18 @@ import connect from '../../src/index';
 
 import { consumerDataType, SubType } from '../../src/libs/types';
 
+const log: any = {
+  child: () => log,
+  debug: () => true,
+  info: () => true,
+  error: mockLogError,
+  fatal: mockLogFatal,
+};
+
+/**
+ *
+ */
 describe('Integration Testing', () => {
-  let log: any;
   let returnConnect: any;
   let returnChannel: any;
   let queueName: string;
@@ -42,17 +53,10 @@ describe('Integration Testing', () => {
    *
    */
   beforeEach(() => {
-    log = {
-      child: () => log,
-      debug: () => {}, // tslint:disable-line: no-empty
-      info: () => {}, // tslint:disable-line: no-empty
-      error: mockLogError,
-      fatal: mockLogFatal,
-    } as any;
-
     returnConnect = {
       createChannel: mockAmqpChannel,
       on: mockAmqpConnectOn,
+      close: mockAmqpConnectClose,
     };
     returnChannel = {
       on: mockAmqpChannelOn,
@@ -96,20 +100,20 @@ describe('Integration Testing', () => {
 
     expect(instance).toBeInstanceOf(Instance);
 
-    expect(mockAmqpConnect.mock.calls.length).toBe(1);
-    expect(mockAmqpConnect.mock.calls[0]).toEqual(['rabbitmq-url', {}]);
+    expect(mockAmqpConnect).toHaveBeenCalledTimes(1);
+    expect(mockAmqpConnect).toHaveBeenNthCalledWith(1, 'rabbitmq-url', {});
 
-    expect(mockAmqpChannel.mock.calls.length).toBe(1);
-    expect(mockAmqpChannel.mock.calls[0]).toEqual([]);
+    expect(mockAmqpChannel).toHaveBeenCalledTimes(1);
+    expect(mockAmqpChannel).toHaveBeenNthCalledWith(1);
 
-    expect(mockAmqpPrefetch.mock.calls.length).toBe(1);
-    expect(mockAmqpPrefetch.mock.calls[0]).toEqual([2]);
+    expect(mockAmqpPrefetch).toHaveBeenCalledTimes(1);
+    expect(mockAmqpPrefetch).toHaveBeenNthCalledWith(1, 2);
 
-    expect(mockLogError.mock.calls.length).toBe(0);
-    expect(mockLogFatal.mock.calls.length).toBe(0);
+    expect(mockLogError).toHaveBeenCalledTimes(0);
+    expect(mockLogFatal).toHaveBeenCalledTimes(0);
 
-    expect(mockAmqpConnectOn.mock.calls.length).toBe(2);
-    expect(mockAmqpChannelOn.mock.calls.length).toBe(2);
+    expect(mockAmqpConnectOn).toHaveBeenCalledTimes(2);
+    expect(mockAmqpChannelOn).toHaveBeenCalledTimes(2);
   });
 
   const serviceValues: Array<[keyof SubType<Instance, (...args: any[]) => any>, any, string, number?]> = [
@@ -130,11 +134,11 @@ describe('Integration Testing', () => {
 
     expect(service).toBeInstanceOf(ServiceType);
 
-    expect(mockLogError.mock.calls.length).toBe(0);
-    expect(mockLogFatal.mock.calls.length).toBe(0);
+    expect(mockLogError).toHaveBeenCalledTimes(0);
+    expect(mockLogFatal).toHaveBeenCalledTimes(0);
   });
 
-  test('it should be call amqp cancel() when shtudown is called', async () => {
+  test('it should be call amqp close() when shtudown is called', async () => {
     const mockConsumer = jest.fn();
 
     const instance = await connect(
@@ -159,16 +163,18 @@ describe('Integration Testing', () => {
     await w2.setConsumer(mockConsumer);
     await w3.setConsumer(mockConsumer);
 
-    await instance.shutdown();
+    await instance.close();
 
-    expect(mockAmqpChannelClose.mock.calls.length).toBe(1);
+    expect(mockAmqpChannelClose).toHaveBeenCalledTimes(1);
 
-    expect(mockAmqpCancel.mock.calls.length).toBe(5);
-    expect(mockAmqpCancel.mock.calls[0]).toEqual([queueTag + 'p1']);
-    expect(mockAmqpCancel.mock.calls[1]).toEqual([queueTag + 'p2']);
-    expect(mockAmqpCancel.mock.calls[2]).toEqual([queueTag + 'w1']);
-    expect(mockAmqpCancel.mock.calls[3]).toEqual([queueTag + 'w2']);
-    expect(mockAmqpCancel.mock.calls[4]).toEqual([queueTag]);
+    expect(mockAmqpConnectClose).toHaveBeenCalledTimes(1);
+
+    expect(mockAmqpCancel).toHaveBeenCalledTimes(5);
+    expect(mockAmqpCancel).toHaveBeenNthCalledWith(1, queueTag + 'p1');
+    expect(mockAmqpCancel).toHaveBeenNthCalledWith(2, queueTag + 'p2');
+    expect(mockAmqpCancel).toHaveBeenNthCalledWith(3, queueTag + 'w1');
+    expect(mockAmqpCancel).toHaveBeenNthCalledWith(4, queueTag + 'w2');
+    expect(mockAmqpCancel).toHaveBeenNthCalledWith(5, queueTag);
   });
 
   /**
@@ -198,11 +204,11 @@ describe('Integration Testing', () => {
 
       await service.send({ ...payload });
 
-      expect(mockAmqpAssertExchange.mock.calls.length).toBe(1);
-      expect(mockAmqpAssertExchange.mock.calls[0]).toEqual([type + '-queue', exchangeType, { durable: true }]);
+      expect(mockAmqpAssertExchange).toHaveBeenCalledTimes(1);
+      expect(mockAmqpAssertExchange).toHaveBeenNthCalledWith(1, type + '-queue', exchangeType, { durable: true });
 
-      expect(mockAmqpPublish.mock.calls.length).toBe(1);
-      expect(mockAmqpConsume.mock.calls.length).toBe(0);
+      expect(mockAmqpPublish).toHaveBeenCalledTimes(1);
+      expect(mockAmqpConsume).toHaveBeenCalledTimes(0);
       expect(mockAmqpPublish.mock.calls[0]).toEqual([
         type + '-queue',
         '',
@@ -210,8 +216,8 @@ describe('Integration Testing', () => {
         { persistent: true, priority, timestamp: 1234567890123 },
       ]);
 
-      expect(mockLogError.mock.calls.length).toBe(0);
-      expect(mockLogFatal.mock.calls.length).toBe(0);
+      expect(mockLogError).toHaveBeenCalledTimes(0);
+      expect(mockLogFatal).toHaveBeenCalledTimes(0);
     });
 
     /**
@@ -223,13 +229,13 @@ describe('Integration Testing', () => {
 
       await service.setConsumer(mockConsumer);
 
-      expect(mockAmqpPublish.mock.calls.length).toBe(0);
-      expect(mockAmqpConsume.mock.calls.length).toBe(1);
-      expect(mockAmqpConsume.mock.calls[0]).toEqual([queueNameInternal, expect.any(Function), { noAck: false }]);
-      expect(mockConsumer.mock.calls.length).toBe(0);
+      expect(mockAmqpPublish).toHaveBeenCalledTimes(0);
+      expect(mockAmqpConsume).toHaveBeenCalledTimes(1);
+      expect(mockAmqpConsume).toHaveBeenNthCalledWith(1, queueNameInternal, expect.any(Function), { noAck: false });
+      expect(mockConsumer).toHaveBeenCalledTimes(0);
 
-      expect(mockLogError.mock.calls.length).toBe(0);
-      expect(mockLogFatal.mock.calls.length).toBe(0);
+      expect(mockLogError).toHaveBeenCalledTimes(0);
+      expect(mockLogFatal).toHaveBeenCalledTimes(0);
     });
 
     /**
@@ -247,21 +253,21 @@ describe('Integration Testing', () => {
 
       await service.setConsumer(mockConsumer);
 
-      expect(mockAmqpConsume.mock.calls.length).toBe(1);
+      expect(mockAmqpConsume).toHaveBeenCalledTimes(1);
       expect(mockAmqpConsume.mock.calls[0][1]).toEqual(expect.any(Function));
 
       const consumer = mockAmqpConsume.mock.calls[0][1];
 
       await consumer(message);
 
-      expect(mockAmqpPublish.mock.calls.length).toBe(0);
-      expect(mockConsumer.mock.calls.length).toBe(1);
-      expect(mockAmqpAck.mock.calls.length).toBe(1);
-      expect(mockAmqpNack.mock.calls.length).toBe(0);
-      expect(mockLogError.mock.calls.length).toBe(0);
-      expect(mockLogFatal.mock.calls.length).toBe(0);
+      expect(mockAmqpPublish).toHaveBeenCalledTimes(0);
+      expect(mockConsumer).toHaveBeenCalledTimes(1);
+      expect(mockAmqpAck).toHaveBeenCalledTimes(1);
+      expect(mockAmqpNack).toHaveBeenCalledTimes(0);
+      expect(mockLogError).toHaveBeenCalledTimes(0);
+      expect(mockLogFatal).toHaveBeenCalledTimes(0);
 
-      expect(mockAmqpAck.mock.calls[0]).toEqual([message]);
+      expect(mockAmqpAck).toHaveBeenNthCalledWith(1, message);
     });
 
     /**
@@ -276,19 +282,19 @@ describe('Integration Testing', () => {
 
       await service.setConsumer(mockConsumer);
 
-      expect(mockAmqpConsume.mock.calls.length).toBe(1);
+      expect(mockAmqpConsume).toHaveBeenCalledTimes(1);
       expect(mockAmqpConsume.mock.calls[0][1]).toEqual(expect.any(Function));
 
       const consumer = mockAmqpConsume.mock.calls[0][1];
 
       await consumer(message);
 
-      expect(mockAmqpPublish.mock.calls.length).toBe(0);
-      expect(mockConsumer.mock.calls.length).toBe(1);
-      expect(mockAmqpAck.mock.calls.length).toBe(0);
-      expect(mockAmqpNack.mock.calls.length).toBe(1);
-      expect(mockLogError.mock.calls.length).toBe(1);
-      expect(mockLogFatal.mock.calls.length).toBe(0);
+      expect(mockAmqpPublish).toHaveBeenCalledTimes(0);
+      expect(mockConsumer).toHaveBeenCalledTimes(1);
+      expect(mockAmqpAck).toHaveBeenCalledTimes(0);
+      expect(mockAmqpNack).toHaveBeenCalledTimes(1);
+      expect(mockLogError).toHaveBeenCalledTimes(1);
+      expect(mockLogFatal).toHaveBeenCalledTimes(0);
     });
 
     /**
@@ -308,19 +314,19 @@ describe('Integration Testing', () => {
 
       await service2.setConsumer(mockConsumer);
 
-      expect(mockAmqpConsume.mock.calls.length).toBe(1);
+      expect(mockAmqpConsume).toHaveBeenCalledTimes(1);
       expect(mockAmqpConsume.mock.calls[0][1]).toEqual(expect.any(Function));
 
       const consumer = mockAmqpConsume.mock.calls[0][1];
 
       await consumer(message);
 
-      expect(mockAmqpPublish.mock.calls.length).toBe(1);
-      expect(mockConsumer.mock.calls.length).toBe(1);
-      expect(mockAmqpAck.mock.calls.length).toBe(0);
-      expect(mockAmqpNack.mock.calls.length).toBe(1);
-      expect(mockLogError.mock.calls.length).toBe(1);
-      expect(mockLogFatal.mock.calls.length).toBe(0);
+      expect(mockAmqpPublish).toHaveBeenCalledTimes(1);
+      expect(mockConsumer).toHaveBeenCalledTimes(1);
+      expect(mockAmqpAck).toHaveBeenCalledTimes(0);
+      expect(mockAmqpNack).toHaveBeenCalledTimes(1);
+      expect(mockLogError).toHaveBeenCalledTimes(1);
+      expect(mockLogFatal).toHaveBeenCalledTimes(0);
 
       expect(mockAmqpPublish.mock.calls[0]).toEqual([
         type + '-queue',

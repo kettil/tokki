@@ -1,13 +1,16 @@
+import Joi from '@hapi/joi';
 import { Channel, ConsumeMessage } from 'amqplib';
-import Joi from 'joi';
-
-import CloseHandler from '../helper/closeHandler';
 
 import Instance from '../instance';
 
-import { consumerDataType, consumerType, loggerType, objectType, publishOptionsType, servicesType } from '../types';
+import { consumerDataType, consumerType, InterfaceLogger, objectType, publishOptionsType } from '../types';
 
+/**
+ *
+ */
 export default class Service<PayloadType extends {} = objectType> {
+  protected countTasks: number = 0;
+
   protected isInitialized = { global: false, consumer: false, sender: false };
 
   protected consumerTag?: string;
@@ -16,20 +19,14 @@ export default class Service<PayloadType extends {} = objectType> {
 
   protected readonly channel: Channel;
 
-  protected readonly services: servicesType;
-
-  protected readonly closeHandler: CloseHandler;
-
   /**
    *
    * @param name
    * @param log
    * @param instance
    */
-  constructor(readonly log: loggerType, instance: Instance, readonly name: string, readonly error?: Service) {
+  constructor(readonly log: InterfaceLogger, instance: Instance, readonly name: string, readonly error?: Service) {
     this.channel = instance.channel;
-    this.services = instance.services;
-    this.closeHandler = instance.closeHandler;
 
     this.consumerQueue = name;
   }
@@ -70,7 +67,14 @@ export default class Service<PayloadType extends {} = objectType> {
       this.isInitialized.sender = true;
     }
 
-    this.log.info({ payload }, `[AMQP] New payload for queue "${this.name}".`);
+    this.log.info(
+      {
+        consumerQueue: this.name,
+        consumerName: this.name,
+        payload,
+      },
+      `[AMQP] New payload for queue "${this.name}".`,
+    );
 
     this.channel.publish(this.name, '', Buffer.from(JSON.stringify(payload), 'utf8'), {
       priority,
@@ -97,7 +101,13 @@ export default class Service<PayloadType extends {} = objectType> {
       this.isInitialized.consumer = true;
     }
 
-    this.log.info(`[AMQP] Set consumer on channel "${this.name}" (queue: ${this.consumerQueue}).`);
+    this.log.info(
+      {
+        consumerQueue: this.consumerQueue,
+        consumerName: this.name,
+      },
+      `[AMQP] Set consumer on channel "${this.name}" (queue: ${this.consumerQueue}).`,
+    );
 
     // If a consumer exists, it is deactivated.
     await this.cancel();
@@ -112,78 +122,77 @@ export default class Service<PayloadType extends {} = objectType> {
   }
 
   /**
+   * Do not call this function,
+   * but you call the function setConsumer().
    *
    * @param consumer
    */
   async createConsumer(consumer: consumerType<PayloadType>, schema?: Joi.ObjectSchema) {
     return async (message: ConsumeMessage | null) => {
       if (message) {
-        const timestamp = this.getTimestamp(message.properties.timestamp);
-        const logChild = this.log.child({ jobId: message.properties.messageId, jobCreated: timestamp });
+        const timestamp = message.properties.timestamp ? new Date(message.properties.timestamp) : undefined;
+        const logChild = this.log.child({
+          consumerQueue: this.consumerQueue,
+          consumerName: this.name,
+          messageId: message.properties.messageId,
+        });
 
         try {
-          this.closeHandler.start(this.name);
+          this.taskCreated();
 
           const content: PayloadType = JSON.parse(message.content.toString('utf8'));
           const payload = schema ? await schema.validate(content, { stripUnknown: true, abortEarly: false }) : content;
 
-          logChild.info({ payload: content }, '[AMQP] New job is started.');
+          logChild.info({ payload: content, taskCreated: timestamp }, '[AMQP] New task is started.');
 
           let isFinalized = false;
 
           const parsedMessage: consumerDataType<PayloadType> = {
             log: logChild,
-            created: timestamp ? new Date(timestamp) : undefined,
+            created: timestamp,
             payload,
 
             next: async () => {
               isFinalized = true;
 
-              logChild.info({ payload }, '[AMQP] Job completed successfully.');
+              logChild.info({ payload }, '[AMQP] Task completed successfully.');
 
               await this.channel.ack(message);
-              this.closeHandler.finish(this.name);
+
+              this.taskCompleted();
             },
 
             discard: async () => {
               isFinalized = true;
 
-              logChild.info({ payload }, '[AMQP] Job has failed');
+              logChild.info({ payload }, '[AMQP] Task has failed');
 
               await this.channel.nack(message, false, false);
-              this.closeHandler.finish(this.name);
+
+              this.taskCompleted();
             },
 
             defer: async () => {
               isFinalized = true;
 
-              logChild.info({ payload }, '[AMQP] Job is requeue.');
+              logChild.info({ payload }, '[AMQP] Task is requeue.');
 
               await this.channel.nack(message, false, true);
-              this.closeHandler.finish(this.name);
-            },
 
-            write: async (name: string, data: any) => {
-              const service = this.services.get(name);
-
-              if (!service) {
-                throw new Error(`Service "${name}" is unknown`);
-              }
-
-              await service.send(data);
+              this.taskCompleted();
             },
           };
 
           await consumer(parsedMessage);
 
           if (!isFinalized) {
-            throw new Error('Job was not marked as completed.');
+            throw new Error('Task was not marked as completed.');
           }
         } catch (err) {
           await this.errorHandling(logChild, message, err);
         }
       } else {
-        this.log.info('[AMQP] New job without consume message');
+        this.log.info('[AMQP] New task without consume message');
       }
     };
   }
@@ -194,14 +203,15 @@ export default class Service<PayloadType extends {} = objectType> {
    * @param message
    * @param err
    */
-  async errorHandling(log: loggerType, message: ConsumeMessage, err: any) {
+  async errorHandling(log: InterfaceLogger, message: ConsumeMessage, err: any) {
     try {
       const error = err instanceof Error ? err : new Error(err || 'unknown error');
 
-      log.error({ err }, '[AMQP] Job has an error.');
+      log.error({ err }, '[AMQP] Task has an error.');
 
       await this.channel.nack(message, false, false);
-      this.closeHandler.finish(this.name);
+
+      this.taskCompleted();
 
       if (this.error) {
         await this.error.send({
@@ -213,29 +223,50 @@ export default class Service<PayloadType extends {} = objectType> {
         });
       }
     } catch (e) {
-      log.fatal({ err: e, errPrevent: err }, '[AMQP] Error handling from job is failed.');
+      log.fatal({ err: e, errPrevent: err }, '[AMQP] Error handling from task is failed.');
 
       await this.channel.close();
     }
   }
 
   /**
-   * Consumers do not accept new jobs.
+   * Consumers do not accept new Tasks.
    */
   async cancel() {
     if (this.consumerTag) {
+      // Does not accept a new task
       await this.channel.cancel(this.consumerTag);
+    }
+
+    // Wait for all tasks to be completed
+    while (this.countTasks > 0) {
+      await this.delay(100);
     }
   }
 
   /**
    *
-   * @param timestmap
+   * @param ms
    */
-  getTimestamp(timestmap: any) {
-    if (typeof timestmap === 'number' && timestmap.toString().length === 13) {
-      return timestmap;
-    }
-    return undefined;
+  delay(ms: number) {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve();
+      }, ms);
+    });
+  }
+
+  /**
+   *
+   */
+  protected taskCreated() {
+    this.countTasks += 1;
+  }
+
+  /**
+   *
+   */
+  protected taskCompleted() {
+    this.countTasks = Math.max(0, this.countTasks - 1);
   }
 }

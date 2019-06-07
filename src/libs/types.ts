@@ -21,13 +21,12 @@ export type publishOptionsType = {
  *
  */
 export type consumerDataType<Payload> = {
-  log: loggerType;
+  log: InterfaceLogger;
   created?: Date;
   payload: Payload;
   next: () => Promise<void>;
   discard: () => Promise<void>;
   defer: () => Promise<void>;
-  write: (name: string, payload: objectType) => Promise<void>;
 };
 
 /**
@@ -48,7 +47,7 @@ export type processTriggerType = (params: {
   readonly code?: number;
   readonly exception?: Error;
   readonly signal?: NodeJS.Signals;
-}) => void;
+}) => Promise<void>;
 
 /**
  *
@@ -66,17 +65,15 @@ export interface InterfaceLog {
 /**
  *
  */
-export type loggerType = {
+export interface InterfaceLogger {
   debug: InterfaceLog;
   info: InterfaceLog;
   warn: InterfaceLog;
   error: InterfaceLog;
   fatal: InterfaceLog;
 
-  child: (data?: objectType) => loggerType;
-
-  [k: string]: any;
-};
+  child: (options: Record<string, any>) => InterfaceLogger;
+}
 
 /**
  *

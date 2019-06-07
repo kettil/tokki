@@ -44,7 +44,7 @@
     "pretest:functional": "npm run docker:start",
     "pretest:functional:watch": "npm run docker:start",
     "precoverage:generate:functional": "npm run docker:start",
-    "postdocker:start": "sleep 30",
+    "postdocker:start": "echo 'Waiting' && sleep 30",
     "posttest:functional": "npm run docker:stop",
     "posttest:functional:watch": "npm run docker:stop",
     "postcoverage:generate:functional": "npm run docker:stop"
@@ -53,13 +53,13 @@
   "author": "Kjell Dießel <development@kettil.de>",
   "license": "MIT",
   "devDependencies": {
-    "@types/amqplib": "^0.5.12",
+    "@hapi/joi": "^15.0.0",
+    "@types/hapi__joi": "^15.0.0",
     "@types/jest": "^24.0.13",
     "@types/joi": "^14.3.3",
     "@types/node": "^12.0.0",
     "husky": "^2.1.0",
     "jest": "^24.8.0",
-    "joi": "^14.3.1",
     "prettier": "^1.18.0",
     "ts-jest": "^24.0.2",
     "tslint": "^5.17.0",
@@ -70,9 +70,10 @@
     "typescript": "^3.5.1"
   },
   "dependencies": {
+    "@types/amqplib": "^0.5.12",
     "amqplib": "^0.5.3"
   },
   "peerDependencies": {
-    "joi": "^14.0.0"
+    "@hapi/joi": "^15.0.0"
   }
 }

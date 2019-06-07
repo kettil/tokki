@@ -1,37 +1,31 @@
+const mockLogError = jest.fn();
+const mockLogFatal = jest.fn();
+
 import { amqpUrl, delay } from './helper/config';
-
-const mockProcessExit = jest.spyOn(process, 'exit').mockImplementation();
-
-const mockLogError = jest.fn(console.log); // tslint:disable-line: no-console
-const mockLogFatal = jest.fn(console.log); // tslint:disable-line: no-console
 
 import Instance from '../../src/libs/instance';
 
 import connect from '../../src/index';
 
+const log: any = {
+  child: () => log,
+  debug: () => true,
+  info: () => true,
+  error: mockLogError,
+  fatal: mockLogFatal,
+};
+
 jest.setTimeout(10000);
 
+/**
+ *
+ */
 describe('Functional Testing', () => {
-  let log: any;
-
   /**
    *
    */
-  beforeEach(() => {
-    log = {
-      child: () => log,
-      debug: () => {}, // tslint:disable-line: no-empty
-      info: () => {}, // tslint:disable-line: no-empty
-      error: mockLogError,
-      fatal: mockLogFatal,
-    } as any;
-  });
-
-  /**
-   *
-   */
-  test('it should be establishes and closes a connection when connect() and shutdown() is called', async (done) => {
-    expect.assertions(4);
+  test('it should be establishes and closes a connection when connect() and close() is called', async (done) => {
+    expect.assertions(3);
 
     const instance = await connect(
       log,
@@ -43,21 +37,20 @@ describe('Functional Testing', () => {
     await instance.on('close', async () => {
       expect(mockLogError.mock.calls.length).toBe(0);
       expect(mockLogFatal.mock.calls.length).toBe(0);
-      expect(mockProcessExit.mock.calls.length).toBe(0);
 
       done();
     });
 
     await delay(250);
 
-    await instance.shutdown();
+    await instance.close();
   });
 
   /**
    *
    */
-  test('it should be closes a connection when shutdown() is called and all jobs finished', async (done) => {
-    expect.assertions(10);
+  test('it should be closes a connection when close() is called and all jobs finished', async (done) => {
+    expect.assertions(9);
 
     const instance = await connect(
       log,
@@ -112,13 +105,43 @@ describe('Functional Testing', () => {
 
       expect(mockLogError.mock.calls.length).toBe(0);
       expect(mockLogFatal.mock.calls.length).toBe(0);
-      expect(mockProcessExit.mock.calls.length).toBe(0);
 
       done();
     });
 
     await delay(1150);
 
-    await instance.shutdown();
+    await instance.close();
+  });
+
+  /**
+   *
+   */
+  test('it should be throw a error and close the connection when status of a non-existent queue is checked.', async (done) => {
+    expect.assertions(4);
+
+    const instance = await connect(
+      log,
+      amqpUrl,
+    );
+
+    await instance.channel.deleteExchange('notExistQueue');
+    await instance.channel.deleteQueue('notExistQueue');
+
+    await instance.on('close', async () => {
+      expect(mockLogError.mock.calls.length).toBe(0);
+      expect(mockLogFatal.mock.calls.length).toBe(1);
+
+      done();
+    });
+
+    try {
+      await instance.channel.checkQueue('notExistQueue');
+    } catch (err) {
+      expect(err).toBeInstanceOf(Error);
+      expect(err.message).toBe(
+        `Operation failed: QueueDeclare; 404 (NOT-FOUND) with message "NOT_FOUND - no queue 'notExistQueue' in vhost '/'"`,
+      );
+    }
   });
 });

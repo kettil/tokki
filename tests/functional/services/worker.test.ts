@@ -1,9 +1,7 @@
-import { amqpUrl, delay } from '../helper/config';
-
-// const mockLogError = jest.fn(console.log); // tslint:disable-line: no-console
-// const mockLogFatal = jest.fn(console.log); // tslint:disable-line: no-console
 const mockLogError = jest.fn();
 const mockLogFatal = jest.fn();
+
+import { amqpUrl, delay } from '../helper/config';
 
 import Instance from '../../../src/libs/instance';
 import Worker from '../../../src/libs/services/worker';
@@ -12,10 +10,17 @@ import connect from '../../../src/index';
 
 import { consumerDataType } from '../../../src/libs/types';
 
+const log: any = {
+  child: () => log,
+  debug: () => true,
+  info: () => true,
+  error: mockLogError,
+  fatal: mockLogFatal,
+};
+
 jest.setTimeout(10000);
 
 describe('Check the service worker', () => {
-  let log: any;
   let instance: Instance;
   let queueName: string;
   let mockPayload: jest.Mock;
@@ -26,14 +31,6 @@ describe('Check the service worker', () => {
    *
    */
   beforeEach(async () => {
-    log = {
-      child: () => log,
-      debug: () => {}, // tslint:disable-line: no-empty
-      info: () => {}, // tslint:disable-line: no-empty
-      error: mockLogError,
-      fatal: mockLogFatal,
-    } as any;
-
     instance = await connect(
       log,
       amqpUrl,
@@ -56,7 +53,7 @@ describe('Check the service worker', () => {
       done();
     });
 
-    await instance.shutdown();
+    await instance.close();
   });
 
   /**
@@ -73,9 +70,9 @@ describe('Check the service worker', () => {
       await data.next();
     });
 
-    worker.send({ z: 23 });
-    worker.send({ z: 42 });
-    worker.send({ z: 7 });
+    await worker.send({ z: 23 });
+    await worker.send({ z: 42 });
+    await worker.send({ z: 7 });
 
     await delay(800);
 
@@ -110,9 +107,9 @@ describe('Check the service worker', () => {
     await worker1.setConsumer(consumer1);
     await worker2.setConsumer(consumer1);
 
-    worker.send({ z: 'hi', d: 300 });
-    worker.send({ z: 'hello', d: 500 });
-    worker.send({ z: 'good morning', d: 200 });
+    await worker.send({ z: 'hi', d: 300 });
+    await worker.send({ z: 'hello', d: 500 });
+    await worker.send({ z: 'good morning', d: 200 });
 
     await delay(600);
 
@@ -141,7 +138,7 @@ describe('Check the service worker', () => {
 
     await worker.setConsumer(consumer);
 
-    worker.send({ z: 'hi' });
+    await worker.send({ z: 'hi' });
     await delay(100);
     await worker.cancel();
     await delay(150);
@@ -169,7 +166,7 @@ describe('Check the service worker', () => {
 
     await worker.setConsumer(consumer);
 
-    worker.send({ z: 'hi' });
+    await worker.send({ z: 'hi' });
     await delay(100);
     await worker.cancel();
     await delay(150);
@@ -204,7 +201,7 @@ describe('Check the service worker', () => {
 
     await worker.setConsumer(consumer);
 
-    worker.send({ z: 'hi' });
+    await worker.send({ z: 'hi' });
 
     await delay(250);
 
@@ -232,13 +229,13 @@ describe('Check the service worker', () => {
 
     await worker.setConsumer(consumer);
 
-    worker.send({ z: 'hi-1' });
-    worker.send({ z: 'hi-2' });
-    worker.send({ z: 'hi-3' });
-    worker.send({ z: 'hi-4' }, { priority: 5 });
-    worker.send({ z: 'hi-5' });
-    worker.send({ z: 'hi-6' });
-    worker.send({ z: 'hi-7' }, { priority: 10 });
+    await worker.send({ z: 'hi-1' });
+    await worker.send({ z: 'hi-2' });
+    await worker.send({ z: 'hi-3' });
+    await worker.send({ z: 'hi-4' }, { priority: 5 });
+    await worker.send({ z: 'hi-5' });
+    await worker.send({ z: 'hi-6' });
+    await worker.send({ z: 'hi-7' }, { priority: 10 });
 
     await delay(750);
 
@@ -288,7 +285,7 @@ describe('Check the service worker', () => {
     expect(mockPayload.mock.calls[0]).toEqual([{ z: 'hi-to-other-worker' }]);
 
     expect(mockLogError.mock.calls.length).toBe(1);
-    expect(mockLogError.mock.calls[0]).toEqual([{ err: expect.any(Error) }, '[AMQP] Job has an error.']);
+    expect(mockLogError.mock.calls[0]).toEqual([{ err: expect.any(Error) }, '[AMQP] Task has an error.']);
 
     expect(messageCount).toBe(1);
     expect(messageCount1).toBe(0);

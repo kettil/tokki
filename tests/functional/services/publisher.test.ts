@@ -1,7 +1,7 @@
-import { amqpUrl, delay } from '../helper/config';
+const mockLogError = jest.fn();
+const mockLogFatal = jest.fn();
 
-const mockLogError = jest.fn(console.log); // tslint:disable-line: no-console
-const mockLogFatal = jest.fn(console.log); // tslint:disable-line: no-console
+import { amqpUrl, delay } from '../helper/config';
 
 import Instance from '../../../src/libs/instance';
 import Publisher from '../../../src/libs/services/publisher';
@@ -10,24 +10,23 @@ import connect from '../../../src/index';
 
 import { consumerDataType } from '../../../src/libs/types';
 
+const log: any = {
+  child: () => log,
+  debug: () => true,
+  info: () => true,
+  error: mockLogError,
+  fatal: mockLogFatal,
+};
+
 jest.setTimeout(10000);
 
 describe('Check the service worker', () => {
-  let log: any;
   let instance: Instance;
 
   /**
    *
    */
   beforeEach(async () => {
-    log = {
-      child: () => log,
-      debug: () => {}, // tslint:disable-line: no-empty
-      info: () => {}, // tslint:disable-line: no-empty
-      error: mockLogError,
-      fatal: mockLogFatal,
-    } as any;
-
     instance = await connect(
       log,
       amqpUrl,
@@ -45,7 +44,7 @@ describe('Check the service worker', () => {
       done();
     });
 
-    await instance.shutdown();
+    await instance.close();
   });
 
   /**
@@ -95,6 +94,6 @@ describe('Check the service worker', () => {
 
     await delay(500);
 
-    publisher.send({ z: 'hi' });
+    await publisher.send({ z: 'hi' });
   });
 });

@@ -7,12 +7,10 @@ const mockChannelClose = jest.fn();
 const mockChannelRemoveAllListeners = jest.fn();
 const mockServiceError = jest.fn();
 
-jest.mock('./helper/closeHandler');
 jest.mock('./services/service');
 jest.mock('./services/worker');
 jest.mock('./services/publisher');
 
-import CloseHandler from './helper/closeHandler';
 import Service from './services/service';
 
 import PublisherService from './services/publisher';
@@ -22,6 +20,14 @@ import Instance from './instance';
 
 import { SubType } from './types';
 
+const log: any = {
+  child: () => log,
+  debug: () => true,
+  info: () => true,
+  error: () => true,
+  fatal: mockLogFatal,
+};
+
 /**
  *
  */
@@ -29,20 +35,11 @@ describe('Check the class Instance', () => {
   let instance: Instance;
   let connection: any;
   let channel: any;
-  let log: any;
 
   /**
    *
    */
   beforeEach(() => {
-    log = {
-      child: () => log,
-      debug: () => {}, // tslint:disable-line: no-empty
-      info: () => {}, // tslint:disable-line: no-empty
-      error: () => {}, // tslint:disable-line: no-empty
-      fatal: mockLogFatal,
-    } as any;
-
     connection = {
       on: mockConnectionOn,
       close: mockConnectionClose,
@@ -68,20 +65,19 @@ describe('Check the class Instance', () => {
     expect(instance.log).toBe(log);
     expect(instance.channel).toBe(channel);
     expect(instance.connection).toBe(connection);
-    expect(instance.closeHandler).toBeInstanceOf(CloseHandler);
-    expect(instance.services).toBeInstanceOf(Map);
+    expect((instance as any).services).toBeInstanceOf(Map);
   });
 
   /**
    *
    */
   test('Initialize the events', async () => {
-    // no events are registere
-    expect((instance as any).handler.eventNames()).toEqual([]);
+    // No events are registere
+    expect(instance.eventNames()).toEqual([]);
 
     instance.initEvents();
 
-    expect((instance as any).handler.eventNames()).toEqual([]);
+    expect(instance.eventNames()).toEqual([]);
 
     expect(mockConnectionOn.mock.calls.length).toBe(2);
     expect(mockConnectionOn.mock.calls[0][0]).toBe('close');
@@ -94,10 +90,6 @@ describe('Check the class Instance', () => {
     expect(typeof mockChannelOn.mock.calls[0][1]).toBe('function');
     expect(mockChannelOn.mock.calls[1][0]).toBe('error');
     expect(typeof mockChannelOn.mock.calls[1][1]).toBe('function');
-
-    expect((instance.closeHandler.on as jest.Mock).mock.calls.length).toBe(1);
-    expect((instance.closeHandler.on as jest.Mock).mock.calls[0][0]).toBe('close');
-    expect(typeof (instance.closeHandler.on as jest.Mock).mock.calls[0][1]).toBe('function');
   });
 
   /**
@@ -170,8 +162,6 @@ describe('Check the class Instance', () => {
 
       expect(mockChannelRemoveAllListeners.mock.calls.length).toBe(1);
       expect(mockChannelRemoveAllListeners.mock.calls[0]).toEqual(['close']);
-
-      expect(mockConnectionClose.mock.calls.length).toBe(1);
     });
 
     /**
@@ -191,26 +181,10 @@ describe('Check the class Instance', () => {
       expect(mockChannelRemoveAllListeners.mock.calls.length).toBe(1);
       expect(mockChannelRemoveAllListeners.mock.calls[0]).toEqual(['error']);
 
-      expect(mockChannelClose.mock.calls.length).toBe(1);
+      expect(mockConnectionClose.mock.calls.length).toBe(1);
 
       expect(mockLogFatal.mock.calls.length).toBe(1);
       expect(mockLogFatal.mock.calls[0]).toEqual([{ err }, '[AMQP] A channel error has occurred.']);
-    });
-
-    /**
-     *
-     */
-    test('it should be call the closeHandler shutdown event when this is triggered', async () => {
-      expect((instance.closeHandler.on as jest.Mock).mock.calls.length).toBe(1);
-      expect((instance.closeHandler.on as jest.Mock).mock.calls[0][0]).toBe('close');
-      expect(typeof (instance.closeHandler.on as jest.Mock).mock.calls[0][1]).toBe('function');
-
-      const event = (instance.closeHandler.on as jest.Mock).mock.calls[0][1];
-
-      // Call the function to be tested.
-      await event();
-
-      expect(mockChannelClose.mock.calls.length).toBe(1);
     });
   });
 
@@ -234,8 +208,8 @@ describe('Check the class Instance', () => {
       expect((Service as jest.Mock).mock.calls[0][2]).toBe(name);
       expect((Service as jest.Mock).mock.calls[0][3]).toBe(mockServiceError);
 
-      expect(instance.services.size).toBe(1);
-      expect(instance.services.get(name)).toBe(service);
+      expect((instance as any).services.size).toBe(1);
+      expect((instance as any).services.get(name)).toBe(service);
     });
 
     /**
@@ -249,8 +223,8 @@ describe('Check the class Instance', () => {
 
       expect(service2).toBe(service1);
 
-      expect(instance.services.size).toBe(1);
-      expect(instance.services.get(name)).toBe(service1);
+      expect((instance as any).services.size).toBe(1);
+      expect((instance as any).services.get(name)).toBe(service1);
     });
 
     /**
@@ -302,52 +276,60 @@ describe('Check the class Instance', () => {
       expect((ServiceClass as jest.Mock).mock.calls[0][2]).toBe(name);
       expect((ServiceClass as jest.Mock).mock.calls[0][3]).toBe(mockServiceError);
 
-      expect(instance.services.size).toBe(1);
-      expect(instance.services.get(name)).toBe(service);
+      expect((instance as any).services.size).toBe(1);
+      expect((instance as any).services.get(name)).toBe(service);
     });
   });
 
   /**
    *
    */
-  describe('Check the shutdown functions', () => {
+  describe('Check the close functions', () => {
     /**
      *
      */
-    test('it should be called service cancel function when function shutdown() is called without services', async () => {
-      await instance.shutdown();
+    test('it should be called service cancel function when function close() is called without services', async () => {
+      await instance.close();
 
-      expect((instance.closeHandler.close as jest.Mock).mock.calls.length).toBe(1);
+      expect((instance as any).services.size).toBe(0);
+      expect(mockChannelClose).toHaveBeenCalledTimes(1);
+      expect(mockConnectionClose).toHaveBeenCalledTimes(1);
     });
 
     /**
      *
      */
-    test('it should be called service cancel function when function shutdown() is called with one service', async () => {
+    test('it should be called service cancel function when function close() is called with one service', async () => {
       const w1 = await instance.worker('w1');
 
-      await instance.shutdown();
+      await instance.close();
 
-      expect((instance.closeHandler.close as jest.Mock).mock.calls.length).toBe(1);
+      expect((instance as any).services.size).toBe(1);
 
-      expect((w1.cancel as jest.Mock).mock.calls.length).toBe(1);
+      expect(mockChannelClose).toHaveBeenCalledTimes(1);
+      expect(mockConnectionClose).toHaveBeenCalledTimes(1);
+
+      expect(w1.cancel).toHaveBeenCalledTimes(1);
     });
 
     /**
      *
      */
-    test('it should be called service cancel function when function shutdown() is called with three services', async () => {
+    test('it should be called service cancel function when function close() is called with three services', async () => {
       const w1 = await instance.worker('w1');
       const p1 = await instance.publisher('p1');
       const p2 = await instance.publisher('p2');
 
-      await instance.shutdown();
+      await instance.close();
 
-      expect((instance.closeHandler.close as jest.Mock).mock.calls.length).toBe(1);
+      expect((instance as any).services.size).toBe(3);
 
-      expect((w1.cancel as jest.Mock).mock.calls.length).toBe(1);
-      expect((p1.cancel as jest.Mock).mock.calls.length).toBe(1);
-      expect((p2.cancel as jest.Mock).mock.calls.length).toBe(1);
+      expect(mockChannelClose).toHaveBeenCalledTimes(1);
+      expect(mockConnectionClose).toHaveBeenCalledTimes(1);
+
+      expect(w1.cancel).toHaveBeenCalledTimes(1);
+      expect(p1.cancel).toHaveBeenCalledTimes(1);
+      expect(p2.cancel).toHaveBeenCalledTimes(1);
     });
   });
 });

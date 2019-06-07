@@ -6,9 +6,7 @@ const mockAmqpPrefetch = jest.fn();
 
 jest.mock('amqplib', () => ({ connect: mockAmqpConnect }));
 jest.mock('./instance');
-jest.mock('./helper/process');
 
-import { processExit } from './helper/process';
 import Instance from './instance';
 
 import connect from './connect';
@@ -52,7 +50,6 @@ describe('Check the function connect()', () => {
     expect(instance).toBeInstanceOf(Instance);
 
     expect((instance.initEvents as jest.Mock).mock.calls.length).toBe(1);
-    expect((processExit as jest.Mock).mock.calls.length).toBe(0);
 
     expect(mockAmqpConnect.mock.calls.length).toBe(1);
     expect(mockAmqpConnect.mock.calls[0]).toEqual(['url', {}]);
@@ -80,7 +77,6 @@ describe('Check the function connect()', () => {
     expect(instance).toBeInstanceOf(Instance);
 
     expect((instance.initEvents as jest.Mock).mock.calls.length).toBe(1);
-    expect((processExit as jest.Mock).mock.calls.length).toBe(0);
 
     expect(mockAmqpConnect.mock.calls.length).toBe(1);
     expect(mockAmqpConnect.mock.calls[0]).toEqual(['url', {}]);
@@ -99,55 +95,58 @@ describe('Check the function connect()', () => {
    *
    */
   test('it should be call the function when amqp connect throw an error', async () => {
-    const err = new Error('connection error');
+    expect.assertions(6);
 
-    mockAmqpConnect.mockImplementation(async () => {
-      throw err;
-    });
+    mockAmqpConnect.mockRejectedValueOnce(new Error('connection error'));
 
-    await connect(
-      log,
-      'rabbitmq-url',
-    );
+    try {
+      await connect(
+        log,
+        'rabbitmq-url',
+      );
+    } catch (err) {
+      expect(err).toBeInstanceOf(Error);
+      expect(err.message).toBe('connection error');
 
-    expect(mockLogFatal.mock.calls.length).toBe(1);
-    expect(mockLogFatal.mock.calls[0]).toEqual([{ err }, '[AMQP] Could not connect to rabbitmq-url.']);
+      expect(mockLogFatal.mock.calls.length).toBe(1);
+      expect(mockLogFatal.mock.calls[0]).toEqual([
+        { err: expect.any(Error) },
+        '[AMQP] Could not connect to "rabbitmq-url".',
+      ]);
 
-    expect((processExit as jest.Mock).mock.calls.length).toBe(1);
-    expect((processExit as jest.Mock).mock.calls[0]).toEqual([1, 250]);
-
-    expect(mockAmqpConnect.mock.calls.length).toBe(1);
-    expect(mockAmqpConnect.mock.calls[0]).toEqual(['rabbitmq-url', {}]);
+      expect(mockAmqpConnect.mock.calls.length).toBe(1);
+      expect(mockAmqpConnect.mock.calls[0]).toEqual(['rabbitmq-url', {}]);
+    }
   });
 
   /**
    *
    */
   test('it should be call the function when amqp channel throw an error', async () => {
-    const err = new Error('channel error');
+    expect.assertions(10);
 
-    mockAmqpChannel.mockImplementation(async () => {
-      throw err;
-    });
+    mockAmqpChannel.mockRejectedValueOnce(new Error('channel error'));
 
-    await connect(
-      log,
-      'rabbitmq-url',
-    );
+    try {
+      await connect(
+        log,
+        'rabbitmq-url',
+      );
+    } catch (err) {
+      expect(err).toBeInstanceOf(Error);
+      expect(err.message).toBe('channel error');
 
-    expect(mockLogFatal.mock.calls.length).toBe(1);
-    expect(mockLogFatal.mock.calls[0]).toEqual([{ err }, '[AMQP] Could not create a channel.']);
+      expect(mockLogFatal.mock.calls.length).toBe(1);
+      expect(mockLogFatal.mock.calls[0]).toEqual([{ err: expect.any(Error) }, '[AMQP] Could not create a channel.']);
 
-    expect((processExit as jest.Mock).mock.calls.length).toBe(1);
-    expect((processExit as jest.Mock).mock.calls[0]).toEqual([1, 250]);
+      expect(mockAmqpConnect.mock.calls.length).toBe(1);
+      expect(mockAmqpConnect.mock.calls[0]).toEqual(['rabbitmq-url', {}]);
 
-    expect(mockAmqpConnect.mock.calls.length).toBe(1);
-    expect(mockAmqpConnect.mock.calls[0]).toEqual(['rabbitmq-url', {}]);
+      expect(mockAmqpClose.mock.calls.length).toBe(1);
+      expect(mockAmqpClose.mock.calls[0]).toEqual([]);
 
-    expect(mockAmqpClose.mock.calls.length).toBe(1);
-    expect(mockAmqpClose.mock.calls[0]).toEqual([]);
-
-    expect(mockAmqpChannel.mock.calls.length).toBe(1);
-    expect(mockAmqpChannel.mock.calls[0]).toEqual([]);
+      expect(mockAmqpChannel.mock.calls.length).toBe(1);
+      expect(mockAmqpChannel.mock.calls[0]).toEqual([]);
+    }
   });
 });

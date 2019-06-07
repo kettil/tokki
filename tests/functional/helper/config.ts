@@ -4,6 +4,10 @@ export const amqpUser = process.env.AMQP_USER || 'guest';
 export const amqpPassword = process.env.AMQP_PASSWORD || 'guest';
 export const amqpUrl = `amqp://${amqpUser}:${amqpPassword}@${amqpHost}:${amqpPort}`;
 
+/**
+ *
+ * @param ms
+ */
 export const delay = (ms: number) => {
   return new Promise((resolve) => {
     setTimeout(() => {
