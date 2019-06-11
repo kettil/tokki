@@ -1,5 +1,5 @@
 import Joi from '@hapi/joi';
-import { Channel, ConsumeMessage } from 'amqplib';
+import { Channel, Connection, ConsumeMessage } from 'amqplib';
 
 import Instance from '../instance';
 
@@ -17,6 +17,8 @@ export default class Service<PayloadType extends {} = objectType> {
 
   protected consumerQueue: string;
 
+  protected readonly connection: Connection;
+
   protected readonly channel: Channel;
 
   /**
@@ -26,6 +28,7 @@ export default class Service<PayloadType extends {} = objectType> {
    * @param instance
    */
   constructor(readonly log: InterfaceLogger, instance: Instance, readonly name: string, readonly error?: Service) {
+    this.connection = instance.connection;
     this.channel = instance.channel;
 
     this.consumerQueue = name;
@@ -205,9 +208,18 @@ export default class Service<PayloadType extends {} = objectType> {
    */
   async errorHandling(log: InterfaceLogger, message: ConsumeMessage, err: any) {
     try {
+      const content = message.content.toString('utf8');
       const error = err instanceof Error ? err : new Error(err || 'unknown error');
+      let payload: string;
 
-      log.error({ err }, '[AMQP] Task has an error.');
+      try {
+        payload = JSON.parse(content);
+      } catch (err) {
+        // Message is not a valid JSON string
+        payload = content;
+      }
+
+      log.error({ err, messageContent: payload }, '[AMQP] Task has an error.');
 
       await this.channel.nack(message, false, false);
 
@@ -216,7 +228,7 @@ export default class Service<PayloadType extends {} = objectType> {
       if (this.error) {
         await this.error.send({
           queue: this.name,
-          payload: JSON.parse(message.content.toString('utf8')),
+          payload,
           name: error.name,
           message: error.message,
           stack: error.stack ? error.stack.split('\n') : [],
@@ -225,7 +237,7 @@ export default class Service<PayloadType extends {} = objectType> {
     } catch (e) {
       log.fatal({ err: e, errPrevent: err }, '[AMQP] Error handling from task is failed.');
 
-      await this.channel.close();
+      await this.connection.close();
     }
   }
 

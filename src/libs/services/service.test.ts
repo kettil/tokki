@@ -1,9 +1,9 @@
 const mockDateNow = jest.spyOn(Date, 'now').mockImplementation();
 
+const mockConnectionClose = jest.fn();
 const mockChannelPublish = jest.fn();
 const mockChannelConsume = jest.fn().mockResolvedValue({ consumerTag: 'abcdef' });
 const mockChannelCancel = jest.fn();
-const mockChannelClose = jest.fn();
 const mockChannelNack = jest.fn();
 const mockChannelAck = jest.fn();
 const mockServicesGet = jest.fn();
@@ -26,6 +26,7 @@ describe('Check the class Service', () => {
   let errorService: any;
   let services: { [k: string]: any };
   let instance: any;
+  let connection: { [k: string]: any };
   let channel: { [k: string]: any };
   let log: any;
 
@@ -35,11 +36,14 @@ describe('Check the class Service', () => {
    *
    */
   beforeEach(() => {
+    connection = {
+      close: mockConnectionClose,
+    };
+
     channel = {
       publish: mockChannelPublish,
       consume: mockChannelConsume,
       cancel: mockChannelCancel,
-      close: mockChannelClose,
       nack: mockChannelNack,
       ack: mockChannelAck,
     };
@@ -61,6 +65,7 @@ describe('Check the class Service', () => {
     };
 
     instance = {
+      connection,
       channel,
       services,
     };
@@ -76,6 +81,7 @@ describe('Check the class Service', () => {
     expect(service).toBeInstanceOf(Service);
 
     // Checked the protected class variables
+    expect((service as any).connection).toBe(connection);
     expect((service as any).channel).toBe(channel);
     expect((service as any).countTasks).toBe(0);
     expect((service as any).isInitialized).toEqual({ global: false, consumer: false, sender: false });
@@ -89,7 +95,26 @@ describe('Check the class Service', () => {
   /**
    *
    */
-  describe('Checks functions directly', () => {
+  test('it should be a delay per setTimeout() when delay() is called', (done) => {
+    expect.assertions(2);
+
+    const promise = service.delay(500);
+
+    jest.runAllTimers();
+
+    promise
+      .then(() => {
+        expect(setTimeout).toHaveBeenCalledTimes(1);
+        expect(setTimeout).toHaveBeenCalledWith(expect.any(Function), 500);
+        done();
+      })
+      .catch(done.fail);
+  });
+
+  /**
+   *
+   */
+  describe('Process flow from error handling', () => {
     /**
      *
      */
@@ -120,7 +145,7 @@ describe('Check the class Service', () => {
         expect(Array.isArray(mockErrorServiceSend.mock.calls[0][0].stack)).toBe(true);
 
         expect(mockLogError.mock.calls.length).toBe(1);
-        expect(mockLogError.mock.calls[0]).toEqual([{ err }, '[AMQP] Task has an error.']);
+        expect(mockLogError.mock.calls[0]).toEqual([{ err, messageContent: payload }, '[AMQP] Task has an error.']);
       },
     );
 
@@ -150,62 +175,95 @@ describe('Check the class Service', () => {
       ]);
 
       expect(mockLogError.mock.calls.length).toBe(1);
-      expect(mockLogError.mock.calls[0]).toEqual([{ err }, '[AMQP] Task has an error.']);
+      expect(mockLogError.mock.calls[0]).toEqual([{ err, messageContent: payload }, '[AMQP] Task has an error.']);
     });
 
     /**
      *
      */
     test('it should be handled in errorHandling() an error object and throw a sub error', async () => {
+      expect.assertions(8);
+
       const err1 = 'test-error';
       const err2 = 'test-channel-error';
       const payload = { a: 'z', b: 42, t: true };
       const message: any = { content: Buffer.from(JSON.stringify(payload)) };
 
-      // change global mockup
-      mockChannelNack.mockImplementation(() => {
-        throw new Error(err2);
-      });
-
-      expect.assertions(8);
+      mockChannelNack.mockRejectedValueOnce(new Error(err2));
 
       await service.errorHandling(log, message, new Error(err1));
 
       expect(mockChannelNack.mock.calls.length).toBe(1);
       expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);
       expect(mockErrorServiceSend.mock.calls.length).toBe(0);
-      expect(mockChannelClose.mock.calls.length).toBe(1);
+      expect(mockConnectionClose.mock.calls.length).toBe(1);
 
       expect(mockLogError.mock.calls.length).toBe(1);
-      expect(mockLogError.mock.calls[0]).toEqual([{ err: new Error(err1) }, '[AMQP] Task has an error.']);
+      expect(mockLogError.mock.calls[0]).toEqual([
+        { err: new Error(err1), messageContent: payload },
+        '[AMQP] Task has an error.',
+      ]);
 
       expect(mockLogFatal.mock.calls.length).toBe(1);
       expect(mockLogFatal.mock.calls[0]).toEqual([
         { err: new Error(err2), errPrevent: new Error(err1) },
         '[AMQP] Error handling from task is failed.',
       ]);
-
-      // reset changes from global mockup
-      mockChannelNack.mockReset();
     });
 
     /**
      *
      */
-    test('it should be a delay per setTimeout() when delay() is called', (done) => {
-      expect.assertions(2);
+    test('it should be handled the error when errorHandling() is called with invalid JSON', async () => {
+      expect.assertions(8);
 
-      const promise = service.delay(500);
+      const err1 = 'test-error';
+      const message: any = { content: Buffer.from('{a:"z",b:42,t:true}') };
 
-      jest.runAllTimers();
+      await service.errorHandling(log, message, new Error(err1));
 
-      promise
-        .then(() => {
-          expect(setTimeout).toHaveBeenCalledTimes(1);
-          expect(setTimeout).toHaveBeenCalledWith(expect.any(Function), 500);
-          done();
-        })
-        .catch(done.fail);
+      expect(mockChannelNack.mock.calls.length).toBe(1);
+      expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);
+      expect(mockErrorServiceSend.mock.calls.length).toBe(1);
+      expect(mockErrorServiceSend.mock.calls[0]).toEqual([
+        {
+          payload: '{a:"z",b:42,t:true}',
+          queue: name,
+          message: 'test-error',
+          name: 'Error',
+          stack: expect.any(Array),
+        },
+      ]);
+
+      expect(mockConnectionClose.mock.calls.length).toBe(0);
+
+      expect(mockLogFatal.mock.calls.length).toBe(0);
+      expect(mockLogError.mock.calls.length).toBe(1);
+      expect(mockLogError.mock.calls[0]).toEqual([
+        { err: new Error(err1), messageContent: expect.any(String) },
+        '[AMQP] Task has an error.',
+      ]);
+    });
+
+    /**
+     *
+     */
+    test('it should be handled the error without send to the other queue when errorHandling() is called', async () => {
+      // create an instance from a abstract class
+      service = new Service(log, instance, name);
+
+      const err = new Error('test-error');
+      const payload = { a: 'z', b: 42, t: true };
+      const message: any = { content: Buffer.from(JSON.stringify(payload)) };
+
+      await service.errorHandling(log, message, err);
+
+      expect(mockChannelNack.mock.calls.length).toBe(1);
+      expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);
+      expect(mockErrorServiceSend.mock.calls.length).toBe(0);
+
+      expect(mockLogError.mock.calls.length).toBe(1);
+      expect(mockLogError.mock.calls[0]).toEqual([{ err, messageContent: payload }, '[AMQP] Task has an error.']);
     });
   });
 
@@ -271,10 +329,7 @@ describe('Check the class Service', () => {
 
       const mockGlobal = jest.fn();
       const mockSender = jest.fn();
-      const payload = {
-        a: 'z',
-        n: 23,
-      };
+      const payload = { a: 'z', n: 23 };
 
       service.initializeGlobal = mockGlobal;
       service.initializeSender = mockSender;
@@ -424,7 +479,10 @@ describe('Check the class Service', () => {
       expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);
 
       expect(mockLogError.mock.calls.length).toBe(1);
-      expect(mockLogError.mock.calls[0]).toEqual([{ err: new Error(errorMessage) }, '[AMQP] Task has an error.']);
+      expect(mockLogError.mock.calls[0]).toEqual([
+        { err: new Error(errorMessage), messageContent: payload },
+        '[AMQP] Task has an error.',
+      ]);
     });
 
     /**
@@ -482,9 +540,10 @@ describe('Check the class Service', () => {
       expect(mockChannelNack.mock.calls.length).toBe(1);
       expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);
 
-      expect(mockLogError.mock.calls.length).toBe(1);
+      expect(mockLogError).toHaveBeenCalledTimes(1);
       expect(mockLogError.mock.calls[0][0].err.name).toBe('ValidationError');
       expect(mockLogError.mock.calls[0][0].err.message).toBe('child "a" fails because ["a" must be a number]');
+      expect(mockLogError.mock.calls[0][0].messageContent).toEqual(payload);
       expect(mockLogError.mock.calls[0][1]).toBe('[AMQP] Task has an error.');
     });
 
@@ -507,7 +566,7 @@ describe('Check the class Service', () => {
 
         await service.setConsumer(mockWorker);
 
-        consumer = mockChannelConsume.mock.calls[0][1 as any];
+        consumer = mockChannelConsume.mock.calls[0][1];
       });
 
       /**
@@ -550,7 +609,7 @@ describe('Check the class Service', () => {
 
         expect(mockLogError.mock.calls.length).toBe(1);
         expect(mockLogError.mock.calls[0]).toEqual([
-          { err: new Error('Task was not marked as completed.') },
+          { err: new Error('Task was not marked as completed.'), messageContent: payload },
           '[AMQP] Task has an error.',
         ]);
       });

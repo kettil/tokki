@@ -260,6 +260,7 @@ describe('Check the service worker', () => {
 
     const errorMessage = 'functional-error-test';
     const queueName1 = 'worker-queue-1';
+    const payload = { z: 'hi-to-other-worker' };
 
     await instance.channel.deleteExchange(queueName1);
     await instance.channel.deleteQueue(queueName1);
@@ -274,7 +275,7 @@ describe('Check the service worker', () => {
 
     await worker1.setConsumer(consumer);
 
-    worker1.send({ z: 'hi-to-other-worker' });
+    worker1.send(payload);
 
     await delay(750);
 
@@ -282,10 +283,13 @@ describe('Check the service worker', () => {
     const { messageCount: messageCount1 } = await instance.channel.checkQueue(queueName1);
 
     expect(mockPayload.mock.calls.length).toBe(1);
-    expect(mockPayload.mock.calls[0]).toEqual([{ z: 'hi-to-other-worker' }]);
+    expect(mockPayload.mock.calls[0]).toEqual([payload]);
 
     expect(mockLogError.mock.calls.length).toBe(1);
-    expect(mockLogError.mock.calls[0]).toEqual([{ err: expect.any(Error) }, '[AMQP] Task has an error.']);
+    expect(mockLogError.mock.calls[0]).toEqual([
+      { err: expect.any(Error), messageContent: payload },
+      '[AMQP] Task has an error.',
+    ]);
 
     expect(messageCount).toBe(1);
     expect(messageCount1).toBe(0);

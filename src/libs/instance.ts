@@ -9,6 +9,8 @@ import WorkerService from './services/worker';
 import { InterfaceLogger, objectType, servicesType } from './types';
 
 export default class Instance extends EventEmitter {
+  protected isClosed: boolean = false;
+
   protected services: servicesType = new Map();
 
   /**
@@ -30,6 +32,7 @@ export default class Instance extends EventEmitter {
 
       this.connection.removeAllListeners('close');
 
+      this.isClosed = true;
       // call the close event from this class
       this.emit('close');
     });
@@ -126,6 +129,10 @@ export default class Instance extends EventEmitter {
    * the connection is closed..
    */
   async close() {
+    if (this.isClosed) {
+      return;
+    }
+
     const promises: Array<Promise<void>> = [];
 
     this.log.info(`[AMQP] Shutdown the service (count: ${this.services.size})`);

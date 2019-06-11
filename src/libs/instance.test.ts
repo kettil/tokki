@@ -65,6 +65,7 @@ describe('Check the class Instance', () => {
     expect(instance.log).toBe(log);
     expect(instance.channel).toBe(channel);
     expect(instance.connection).toBe(connection);
+    expect((instance as any).isClosed).toBe(false);
     expect((instance as any).services).toBeInstanceOf(Map);
   });
 
@@ -124,6 +125,8 @@ describe('Check the class Instance', () => {
 
       expect(mockClose.mock.calls.length).toBe(1);
       expect(mockClose.mock.calls[0]).toEqual([]);
+
+      expect((instance as any).isClosed).toBe(true);
     });
 
     /**
@@ -145,6 +148,8 @@ describe('Check the class Instance', () => {
 
       expect(mockLogFatal.mock.calls.length).toBe(1);
       expect(mockLogFatal.mock.calls[0]).toEqual([{ err }, '[AMQP] A connection error has occurred.']);
+
+      expect((instance as any).isClosed).toBe(false);
     });
 
     /**
@@ -162,6 +167,8 @@ describe('Check the class Instance', () => {
 
       expect(mockChannelRemoveAllListeners.mock.calls.length).toBe(1);
       expect(mockChannelRemoveAllListeners.mock.calls[0]).toEqual(['close']);
+
+      expect((instance as any).isClosed).toBe(false);
     });
 
     /**
@@ -185,6 +192,8 @@ describe('Check the class Instance', () => {
 
       expect(mockLogFatal.mock.calls.length).toBe(1);
       expect(mockLogFatal.mock.calls[0]).toEqual([{ err }, '[AMQP] A channel error has occurred.']);
+
+      expect((instance as any).isClosed).toBe(false);
     });
   });
 
@@ -330,6 +339,28 @@ describe('Check the class Instance', () => {
       expect(w1.cancel).toHaveBeenCalledTimes(1);
       expect(p1.cancel).toHaveBeenCalledTimes(1);
       expect(p2.cancel).toHaveBeenCalledTimes(1);
+    });
+
+    /**
+     *
+     */
+    test('it should be not called service cancel() when close() is called and isClosed is true', async () => {
+      const w1 = await instance.worker('w1');
+      const p1 = await instance.publisher('p1');
+      const p2 = await instance.publisher('p2');
+
+      (instance as any).isClosed = true;
+
+      await instance.close();
+
+      expect((instance as any).services.size).toBe(3);
+
+      expect(mockChannelClose).toHaveBeenCalledTimes(0);
+      expect(mockConnectionClose).toHaveBeenCalledTimes(0);
+
+      expect(w1.cancel).toHaveBeenCalledTimes(0);
+      expect(p1.cancel).toHaveBeenCalledTimes(0);
+      expect(p2.cancel).toHaveBeenCalledTimes(0);
     });
   });
 });
