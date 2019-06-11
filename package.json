@@ -44,7 +44,7 @@
     "pretest:functional": "npm run docker:start",
     "pretest:functional:watch": "npm run docker:start",
     "precoverage:generate:functional": "npm run docker:start",
-    "postdocker:start": "echo 'Waiting' && sleep 30",
+    "postdocker:start": "echo 'Wait until all services have initialized...' && sleep 30",
     "posttest:functional": "npm run docker:stop",
     "posttest:functional:watch": "npm run docker:stop",
     "postcoverage:generate:functional": "npm run docker:stop"
