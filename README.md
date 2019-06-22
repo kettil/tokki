@@ -1,4 +1,6 @@
-# AMQP Handler
+# Tokki 🐰 
+
+A RabbitMQ/AMQP Handler
 
 ## Table of Contents
 
