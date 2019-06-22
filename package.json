@@ -49,7 +49,7 @@
     "posttest:functional:watch": "npm run docker:stop",
     "postcoverage:generate:functional": "npm run docker:stop"
   },
-  "keywords": [],
+  "keywords": ["rabbitmq","rabbitmq-client","rabbitmq-consumer","amqp0-9-1","amqp"],
   "author": "Kjell Dießel <development@kettil.de>",
   "license": "MIT",
   "devDependencies": {
