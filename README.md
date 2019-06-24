@@ -1,4 +1,4 @@
-# Tokki 🐰 
+# Tokki
 
 A RabbitMQ/AMQP Handler
 
