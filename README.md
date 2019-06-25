@@ -16,9 +16,9 @@ A RabbitMQ/AMQP Handler
 
 ```bash
 # Production
-npm install <package-name> -P
+npm install tokki -P
 # Development
-npm install <package-name> -D
+npm install tokki -D
 ```
 
 ## Features
