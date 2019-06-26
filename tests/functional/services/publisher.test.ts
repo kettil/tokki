@@ -27,10 +27,10 @@ describe('Check the service worker', () => {
    *
    */
   beforeEach(async () => {
-    instance = await connect(
-      amqpUrl,
+    instance = await connect({
+      url: amqpUrl,
       log,
-    );
+    });
 
     await instance.channel.deleteExchange('publisher-queue');
     await instance.channel.deleteQueue('publisher-queue');

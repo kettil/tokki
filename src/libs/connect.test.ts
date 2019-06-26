@@ -43,7 +43,7 @@ describe('Check the function connect()', () => {
    *
    */
   test('it should be call the function when the required arguments are passed', async () => {
-    const instance = await connect('url');
+    const instance = await connect({ url: 'url' });
 
     expect(instance).toBeInstanceOf(Instance);
 
@@ -66,11 +66,11 @@ describe('Check the function connect()', () => {
    *
    */
   test('it should be call the function when the optional prefetch argument is 5', async () => {
-    const instance = await connect(
-      'url',
+    const instance = await connect({
+      url: 'url',
       log,
-      5,
-    );
+      prefetch: 5,
+    });
 
     expect(instance).toBeInstanceOf(Instance);
 
@@ -98,10 +98,10 @@ describe('Check the function connect()', () => {
     mockAmqpConnect.mockRejectedValueOnce(new Error('connection error'));
 
     try {
-      await connect(
-        'rabbitmq-url',
+      await connect({
+        url: 'rabbitmq-url',
         log,
-      );
+      });
     } catch (err) {
       expect(err).toBeInstanceOf(Error);
       expect(err.message).toBe('connection error');
@@ -126,10 +126,10 @@ describe('Check the function connect()', () => {
     mockAmqpChannel.mockRejectedValueOnce(new Error('channel error'));
 
     try {
-      await connect(
-        'rabbitmq-url',
+      await connect({
+        url: 'rabbitmq-url',
         log,
-      );
+      });
     } catch (err) {
       expect(err).toBeInstanceOf(Error);
       expect(err.message).toBe('channel error');

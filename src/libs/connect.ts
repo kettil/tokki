@@ -3,7 +3,7 @@ import amqp from 'amqplib';
 import { logDummy } from './helper';
 import Instance from './instance';
 
-import { InterfaceLogger } from './types';
+import { connectArgsType } from './types';
 
 /**
  *
@@ -11,16 +11,17 @@ import { InterfaceLogger } from './types';
  * @param log
  * @param prefetch
  */
-export const connect = async (
-  url: string,
-  log: InterfaceLogger = logDummy,
-  prefetch: number = 1,
-): Promise<Instance> => {
+export const connect = async ({
+  url,
+  log = logDummy,
+  prefetch = 1,
+  options = {},
+}: connectArgsType): Promise<Instance> => {
   let connection: amqp.Connection;
   let channel: amqp.Channel;
 
   try {
-    connection = await amqp.connect(url, {});
+    connection = await amqp.connect(url, options);
   } catch (err) {
     log.fatal({ lib: 'tokki', err }, `Could not connect to "${url.replace(/:([^@]+)@/, ':[protected]@')}".`);
 

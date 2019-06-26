@@ -31,10 +31,10 @@ describe('Check the service worker', () => {
    *
    */
   beforeEach(async () => {
-    instance = await connect(
-      amqpUrl,
+    instance = await connect({
+      url: amqpUrl,
       log,
-    );
+    });
 
     mockPayload = jest.fn();
     queueName = 'worker-queue';

@@ -7,9 +7,9 @@ export default class Worker<PayloadType extends {} = objectType> extends Service
    *
    */
   async initializeGlobal() {
-    await this.channel.assertExchange(this.name, 'direct', { durable: true });
-    await this.channel.assertQueue(this.name, { durable: true, maxPriority: 10 });
-    await this.channel.bindQueue(this.name, this.name, '', {});
+    await this.instance.channel.assertExchange(this.name, 'direct', { durable: true });
+    await this.instance.channel.assertQueue(this.name, { durable: true, maxPriority: 10 });
+    await this.instance.channel.bindQueue(this.name, this.name, '', {});
   }
 
   /**

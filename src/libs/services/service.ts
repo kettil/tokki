@@ -1,5 +1,5 @@
 import Joi from '@hapi/joi';
-import { Channel, Connection, ConsumeMessage } from 'amqplib';
+import { ConsumeMessage } from 'amqplib';
 
 import { delay } from '../helper';
 import Instance from '../instance';
@@ -18,20 +18,18 @@ export default class Service<PayloadType extends {} = objectType> {
 
   protected consumerQueue: string;
 
-  protected readonly connection: Connection;
-
-  protected readonly channel: Channel;
-
   /**
    *
    * @param name
    * @param log
    * @param instance
    */
-  constructor(readonly log: InterfaceLogger, instance: Instance, readonly name: string, readonly error?: Service) {
-    this.connection = instance.connection;
-    this.channel = instance.channel;
-
+  constructor(
+    protected readonly log: InterfaceLogger,
+    protected readonly instance: Instance,
+    protected readonly name: string,
+    protected readonly error?: Service,
+  ) {
     this.consumerQueue = name;
   }
 
@@ -81,7 +79,7 @@ export default class Service<PayloadType extends {} = objectType> {
       `New payload for queue "${this.name}".`,
     );
 
-    this.channel.publish(this.name, '', Buffer.from(JSON.stringify(payload), 'utf8'), {
+    this.instance.channel.publish(this.name, '', Buffer.from(JSON.stringify(payload), 'utf8'), {
       priority,
       persistent: true,
       timestamp: Date.now(),
@@ -114,7 +112,7 @@ export default class Service<PayloadType extends {} = objectType> {
     // If a consumer exists, it is deactivated.
     await this.cancel();
 
-    const { consumerTag } = await this.channel.consume(
+    const { consumerTag } = await this.instance.channel.consume(
       this.consumerQueue,
       await this.createConsumer(consumer, schema),
       { noAck: false },
@@ -124,12 +122,25 @@ export default class Service<PayloadType extends {} = objectType> {
   }
 
   /**
-   * Do not call this function,
-   * but you call the function setConsumer().
+   * Consumers do not accept new Tasks.
+   */
+  async cancel() {
+    if (this.consumerTag) {
+      // Does not accept a new task
+      await this.instance.channel.cancel(this.consumerTag);
+    }
+
+    // Wait for all tasks to be completed
+    while (this.countTasks > 0) {
+      await delay(100);
+    }
+  }
+
+  /*
    *
    * @param consumer
    */
-  async createConsumer(consumer: consumerType<PayloadType>, schema?: Joi.ObjectSchema) {
+  protected async createConsumer(consumer: consumerType<PayloadType>, schema?: Joi.ObjectSchema) {
     return async (message: ConsumeMessage | null) => {
       if (message) {
         const timestamp = message.properties.timestamp ? new Date(message.properties.timestamp) : undefined;
@@ -159,7 +170,7 @@ export default class Service<PayloadType extends {} = objectType> {
 
               logChild.info({ lib: 'tokki', payload }, 'Task completed successfully.');
 
-              await this.channel.ack(message);
+              await this.instance.channel.ack(message);
 
               this.taskCompleted();
             },
@@ -169,7 +180,7 @@ export default class Service<PayloadType extends {} = objectType> {
 
               logChild.info({ lib: 'tokki', payload }, 'Task has failed');
 
-              await this.channel.nack(message, false, false);
+              await this.instance.channel.nack(message, false, false);
 
               this.taskCompleted();
             },
@@ -179,7 +190,7 @@ export default class Service<PayloadType extends {} = objectType> {
 
               logChild.info({ lib: 'tokki', payload }, 'Task is requeue.');
 
-              await this.channel.nack(message, false, true);
+              await this.instance.channel.nack(message, false, true);
 
               this.taskCompleted();
             },
@@ -205,7 +216,7 @@ export default class Service<PayloadType extends {} = objectType> {
    * @param message
    * @param err
    */
-  async errorHandling(log: InterfaceLogger, message: ConsumeMessage, err: any) {
+  protected async errorHandling(log: InterfaceLogger, message: ConsumeMessage, err: any) {
     try {
       const content = message.content.toString('utf8');
       const error = err instanceof Error ? err : new Error(err || 'unknown error');
@@ -220,7 +231,7 @@ export default class Service<PayloadType extends {} = objectType> {
 
       log.error({ lib: 'tokki', err, messageContent: payload }, 'Task has an error.');
 
-      await this.channel.nack(message, false, false);
+      await this.instance.channel.nack(message, false, false);
 
       this.taskCompleted();
 
@@ -236,22 +247,7 @@ export default class Service<PayloadType extends {} = objectType> {
     } catch (e) {
       log.fatal({ lib: 'tokki', err: e, errPrevent: err }, 'Error handling from task is failed.');
 
-      await this.connection.close();
-    }
-  }
-
-  /**
-   * Consumers do not accept new Tasks.
-   */
-  async cancel() {
-    if (this.consumerTag) {
-      // Does not accept a new task
-      await this.channel.cancel(this.consumerTag);
-    }
-
-    // Wait for all tasks to be completed
-    while (this.countTasks > 0) {
-      await delay(100);
+      await this.instance.connection.close();
     }
   }
 

@@ -28,8 +28,6 @@ describe('Check the class Service', () => {
   let errorService: any;
   let services: { [k: string]: any };
   let instance: any;
-  let connection: { [k: string]: any };
-  let channel: { [k: string]: any };
   let log: any;
 
   const name = 'test-queue';
@@ -38,11 +36,11 @@ describe('Check the class Service', () => {
    *
    */
   beforeEach(() => {
-    connection = {
+    const connection = {
       close: mockConnectionClose,
     };
 
-    channel = {
+    const channel = {
       publish: mockChannelPublish,
       consume: mockChannelConsume,
       cancel: mockChannelCancel,
@@ -83,8 +81,7 @@ describe('Check the class Service', () => {
     expect(service).toBeInstanceOf(Service);
 
     // Checked the protected class variables
-    expect((service as any).connection).toBe(connection);
-    expect((service as any).channel).toBe(channel);
+    expect((service as any).instance).toBe(instance);
     expect((service as any).countTasks).toBe(0);
     expect((service as any).isInitialized).toEqual({ global: false, consumer: false, sender: false });
     expect((service as any).consumerTag).toEqual(undefined);
@@ -116,7 +113,7 @@ describe('Check the class Service', () => {
         const payload = { a: 'z', b: 42, t: true };
         const message: any = { content: Buffer.from(JSON.stringify(payload)) };
 
-        await service.errorHandling(log, message, err);
+        await (service as any).errorHandling(log, message, err);
 
         expect(mockChannelNack.mock.calls.length).toBe(1);
         expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);
@@ -145,7 +142,7 @@ describe('Check the class Service', () => {
 
       err.stack = undefined;
 
-      await service.errorHandling(log, message, err);
+      await (service as any).errorHandling(log, message, err);
 
       expect(mockChannelNack.mock.calls.length).toBe(1);
       expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);
@@ -180,7 +177,7 @@ describe('Check the class Service', () => {
 
       mockChannelNack.mockRejectedValueOnce(new Error(err2));
 
-      await service.errorHandling(log, message, new Error(err1));
+      await (service as any).errorHandling(log, message, new Error(err1));
 
       expect(mockChannelNack.mock.calls.length).toBe(1);
       expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);
@@ -209,7 +206,7 @@ describe('Check the class Service', () => {
       const err1 = 'test-error';
       const message: any = { content: Buffer.from('{a:"z",b:42,t:true}') };
 
-      await service.errorHandling(log, message, new Error(err1));
+      await (service as any).errorHandling(log, message, new Error(err1));
 
       expect(mockChannelNack.mock.calls.length).toBe(1);
       expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);
@@ -245,7 +242,7 @@ describe('Check the class Service', () => {
       const payload = { a: 'z', b: 42, t: true };
       const message: any = { content: Buffer.from(JSON.stringify(payload)) };
 
-      await service.errorHandling(log, message, err);
+      await (service as any).errorHandling(log, message, err);
 
       expect(mockChannelNack.mock.calls.length).toBe(1);
       expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);

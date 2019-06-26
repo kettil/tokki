@@ -3,6 +3,16 @@ import Service from './services/service';
 /**
  *
  */
+export type connectArgsType = {
+  url: string;
+  log?: InterfaceLogger;
+  prefetch?: number;
+  options?: any;
+};
+
+/**
+ *
+ */
 export type servicesType = Map<string, Service>;
 
 /**

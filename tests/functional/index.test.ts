@@ -27,10 +27,10 @@ describe('Functional Testing', () => {
   test('it should be establishes and closes a connection when connect() and close() is called', async (done) => {
     expect.assertions(3);
 
-    const instance = await connect(
-      amqpUrl,
+    const instance = await connect({
+      url: amqpUrl,
       log,
-    );
+    });
 
     expect(instance).toBeInstanceOf(Instance);
 
@@ -52,10 +52,10 @@ describe('Functional Testing', () => {
   test('it should be closes a connection when close() is called and all jobs finished', async (done) => {
     expect.assertions(9);
 
-    const instance = await connect(
-      amqpUrl,
+    const instance = await connect({
+      url: amqpUrl,
       log,
-    );
+    });
 
     await instance.channel.deleteExchange('sd-q1');
     await instance.channel.deleteExchange('sd-q2');
@@ -120,10 +120,10 @@ describe('Functional Testing', () => {
   test('it should be throw a error and close the connection when status of a non-existent queue is checked.', async (done) => {
     expect.assertions(4);
 
-    const instance = await connect(
-      amqpUrl,
+    const instance = await connect({
+      url: amqpUrl,
       log,
-    );
+    });
 
     await instance.channel.deleteExchange('notExistQueue');
     await instance.channel.deleteQueue('notExistQueue');

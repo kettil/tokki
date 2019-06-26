@@ -92,11 +92,11 @@ describe('Integration Testing', () => {
    *
    */
   test('it should be create a instance when connect() is called', async () => {
-    const instance = await connect(
-      'rabbitmq-url',
+    const instance = await connect({
+      url: 'rabbitmq-url',
       log,
-      2,
-    );
+      prefetch: 2,
+    });
 
     expect(instance).toBeInstanceOf(Instance);
 
@@ -125,10 +125,10 @@ describe('Integration Testing', () => {
    *
    */
   test.each(serviceValues)('it should be create a service when %s() is called', async (type, ServiceType) => {
-    const instance = await connect(
-      'rabbitmq-url',
+    const instance = await connect({
+      url: 'rabbitmq-url',
       log,
-    );
+    });
 
     const service = await (instance[type] as any)('service-queue');
 
@@ -144,10 +144,10 @@ describe('Integration Testing', () => {
   test('it should be call amqp close() when shtudown is called', async () => {
     const mockConsumer = jest.fn();
 
-    const instance = await connect(
-      'rabbitmq-url',
+    const instance = await connect({
+      url: 'rabbitmq-url',
       log,
-    );
+    });
 
     mockAmqpConsume.mockResolvedValueOnce({ consumerTag: queueTag + 'p1' });
     mockAmqpConsume.mockResolvedValueOnce({ consumerTag: queueTag + 'p2' });
@@ -191,10 +191,10 @@ describe('Integration Testing', () => {
      *
      */
     beforeEach(async () => {
-      instance = await connect(
-        'rabbitmq-url',
+      instance = await connect({
+        url: 'rabbitmq-url',
         log,
-      );
+      });
 
       service = await (instance[type] as any)(type + '-queue');
     });
