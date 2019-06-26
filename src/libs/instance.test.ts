@@ -147,7 +147,7 @@ describe('Check the class Instance', () => {
       expect(mockConnectionRemoveAllListeners.mock.calls[0]).toEqual(['error']);
 
       expect(mockLogFatal.mock.calls.length).toBe(1);
-      expect(mockLogFatal.mock.calls[0]).toEqual([{ err }, '[AMQP] A connection error has occurred.']);
+      expect(mockLogFatal.mock.calls[0]).toEqual([{ lib: 'tokki', err }, 'A connection error has occurred.']);
 
       expect((instance as any).isClosed).toBe(false);
     });
@@ -191,7 +191,7 @@ describe('Check the class Instance', () => {
       expect(mockConnectionClose.mock.calls.length).toBe(1);
 
       expect(mockLogFatal.mock.calls.length).toBe(1);
-      expect(mockLogFatal.mock.calls[0]).toEqual([{ err }, '[AMQP] A channel error has occurred.']);
+      expect(mockLogFatal.mock.calls[0]).toEqual([{ lib: 'tokki', err }, 'A channel error has occurred.']);
 
       expect((instance as any).isClosed).toBe(false);
     });

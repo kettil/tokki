@@ -7,6 +7,7 @@ const mockAmqpPrefetch = jest.fn();
 jest.mock('amqplib', () => ({ connect: mockAmqpConnect }));
 jest.mock('./instance');
 
+import { logDummy } from './helper';
 import Instance from './instance';
 
 import connect from './connect';
@@ -42,10 +43,7 @@ describe('Check the function connect()', () => {
    *
    */
   test('it should be call the function when the required arguments are passed', async () => {
-    const instance = await connect(
-      log,
-      'url',
-    );
+    const instance = await connect('url');
 
     expect(instance).toBeInstanceOf(Instance);
 
@@ -61,7 +59,7 @@ describe('Check the function connect()', () => {
     expect(mockAmqpPrefetch.mock.calls[0]).toEqual([1]);
 
     expect((Instance as any).mock.calls.length).toBe(1);
-    expect((Instance as any).mock.calls[0]).toEqual([log, returnConnect, returnChannel]);
+    expect((Instance as any).mock.calls[0]).toEqual([logDummy, returnConnect, returnChannel]);
   });
 
   /**
@@ -69,8 +67,8 @@ describe('Check the function connect()', () => {
    */
   test('it should be call the function when the optional prefetch argument is 5', async () => {
     const instance = await connect(
-      log,
       'url',
+      log,
       5,
     );
 
@@ -101,8 +99,8 @@ describe('Check the function connect()', () => {
 
     try {
       await connect(
-        log,
         'rabbitmq-url',
+        log,
       );
     } catch (err) {
       expect(err).toBeInstanceOf(Error);
@@ -110,8 +108,8 @@ describe('Check the function connect()', () => {
 
       expect(mockLogFatal.mock.calls.length).toBe(1);
       expect(mockLogFatal.mock.calls[0]).toEqual([
-        { err: expect.any(Error) },
-        '[AMQP] Could not connect to "rabbitmq-url".',
+        { lib: 'tokki', err: expect.any(Error) },
+        'Could not connect to "rabbitmq-url".',
       ]);
 
       expect(mockAmqpConnect.mock.calls.length).toBe(1);
@@ -129,15 +127,18 @@ describe('Check the function connect()', () => {
 
     try {
       await connect(
-        log,
         'rabbitmq-url',
+        log,
       );
     } catch (err) {
       expect(err).toBeInstanceOf(Error);
       expect(err.message).toBe('channel error');
 
       expect(mockLogFatal.mock.calls.length).toBe(1);
-      expect(mockLogFatal.mock.calls[0]).toEqual([{ err: expect.any(Error) }, '[AMQP] Could not create a channel.']);
+      expect(mockLogFatal.mock.calls[0]).toEqual([
+        { lib: 'tokki', err: expect.any(Error) },
+        'Could not create a channel.',
+      ]);
 
       expect(mockAmqpConnect.mock.calls.length).toBe(1);
       expect(mockAmqpConnect.mock.calls[0]).toEqual(['rabbitmq-url', {}]);

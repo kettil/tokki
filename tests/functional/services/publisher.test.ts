@@ -28,8 +28,8 @@ describe('Check the service worker', () => {
    */
   beforeEach(async () => {
     instance = await connect(
-      log,
       amqpUrl,
+      log,
     );
 
     await instance.channel.deleteExchange('publisher-queue');

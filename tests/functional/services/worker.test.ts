@@ -32,8 +32,8 @@ describe('Check the service worker', () => {
    */
   beforeEach(async () => {
     instance = await connect(
-      log,
       amqpUrl,
+      log,
     );
 
     mockPayload = jest.fn();
@@ -287,8 +287,8 @@ describe('Check the service worker', () => {
 
     expect(mockLogError.mock.calls.length).toBe(1);
     expect(mockLogError.mock.calls[0]).toEqual([
-      { err: expect.any(Error), messageContent: payload },
-      '[AMQP] Task has an error.',
+      { lib: 'tokki', err: expect.any(Error), messageContent: payload },
+      'Task has an error.',
     ]);
 
     expect(messageCount).toBe(1);

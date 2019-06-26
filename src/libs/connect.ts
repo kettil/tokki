@@ -1,32 +1,43 @@
 import amqp from 'amqplib';
 
+import { logDummy } from './helper';
 import Instance from './instance';
 
 import { InterfaceLogger } from './types';
 
-export const connect = async (log: InterfaceLogger, url: string, prefetch: number = 1): Promise<Instance> => {
+/**
+ *
+ * @param url
+ * @param log
+ * @param prefetch
+ */
+export const connect = async (
+  url: string,
+  log: InterfaceLogger = logDummy,
+  prefetch: number = 1,
+): Promise<Instance> => {
   let connection: amqp.Connection;
   let channel: amqp.Channel;
 
   try {
     connection = await amqp.connect(url, {});
   } catch (err) {
-    log.fatal({ err }, `[AMQP] Could not connect to "${url.replace(/:([^@]+)@/, ':[protected]@')}".`);
+    log.fatal({ lib: 'tokki', err }, `Could not connect to "${url.replace(/:([^@]+)@/, ':[protected]@')}".`);
 
     throw err;
   }
-  log.info(`[AMQP] Connection has been established.`);
+  log.info({ lib: 'tokki' }, `Connection has been established.`);
 
   try {
     channel = await connection.createChannel();
   } catch (err) {
-    log.fatal({ err }, `[AMQP] Could not create a channel.`);
+    log.fatal({ lib: 'tokki', err }, `Could not create a channel.`);
 
     await connection.close();
 
     throw err;
   }
-  log.info(`[AMQP] Channel has been created.`);
+  log.info({ lib: 'tokki' }, `Channel has been created.`);
 
   await channel.prefetch(prefetch);
 

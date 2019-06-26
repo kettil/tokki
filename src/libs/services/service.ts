@@ -1,6 +1,7 @@
 import Joi from '@hapi/joi';
 import { Channel, Connection, ConsumeMessage } from 'amqplib';
 
+import { delay } from '../helper';
 import Instance from '../instance';
 
 import { consumerDataType, consumerType, InterfaceLogger, objectType, publishOptionsType } from '../types';
@@ -72,11 +73,12 @@ export default class Service<PayloadType extends {} = objectType> {
 
     this.log.info(
       {
+        lib: 'tokki',
         consumerQueue: this.name,
         consumerName: this.name,
         payload,
       },
-      `[AMQP] New payload for queue "${this.name}".`,
+      `New payload for queue "${this.name}".`,
     );
 
     this.channel.publish(this.name, '', Buffer.from(JSON.stringify(payload), 'utf8'), {
@@ -105,11 +107,8 @@ export default class Service<PayloadType extends {} = objectType> {
     }
 
     this.log.info(
-      {
-        consumerQueue: this.consumerQueue,
-        consumerName: this.name,
-      },
-      `[AMQP] Set consumer on channel "${this.name}" (queue: ${this.consumerQueue}).`,
+      { lib: 'tokki', consumerQueue: this.consumerQueue, consumerName: this.name },
+      `Set consumer on channel "${this.name}" (queue: ${this.consumerQueue}).`,
     );
 
     // If a consumer exists, it is deactivated.
@@ -146,7 +145,7 @@ export default class Service<PayloadType extends {} = objectType> {
           const content: PayloadType = JSON.parse(message.content.toString('utf8'));
           const payload = schema ? await schema.validate(content, { stripUnknown: true, abortEarly: false }) : content;
 
-          logChild.info({ payload: content, taskCreated: timestamp }, '[AMQP] New task is started.');
+          logChild.info({ lib: 'tokki', payload: content, taskCreated: timestamp }, 'New task is started.');
 
           let isFinalized = false;
 
@@ -158,7 +157,7 @@ export default class Service<PayloadType extends {} = objectType> {
             next: async () => {
               isFinalized = true;
 
-              logChild.info({ payload }, '[AMQP] Task completed successfully.');
+              logChild.info({ lib: 'tokki', payload }, 'Task completed successfully.');
 
               await this.channel.ack(message);
 
@@ -168,7 +167,7 @@ export default class Service<PayloadType extends {} = objectType> {
             discard: async () => {
               isFinalized = true;
 
-              logChild.info({ payload }, '[AMQP] Task has failed');
+              logChild.info({ lib: 'tokki', payload }, 'Task has failed');
 
               await this.channel.nack(message, false, false);
 
@@ -178,7 +177,7 @@ export default class Service<PayloadType extends {} = objectType> {
             defer: async () => {
               isFinalized = true;
 
-              logChild.info({ payload }, '[AMQP] Task is requeue.');
+              logChild.info({ lib: 'tokki', payload }, 'Task is requeue.');
 
               await this.channel.nack(message, false, true);
 
@@ -195,7 +194,7 @@ export default class Service<PayloadType extends {} = objectType> {
           await this.errorHandling(logChild, message, err);
         }
       } else {
-        this.log.info('[AMQP] New task without consume message');
+        this.log.info({ lib: 'tokki' }, 'New task without consume message');
       }
     };
   }
@@ -219,7 +218,7 @@ export default class Service<PayloadType extends {} = objectType> {
         payload = content;
       }
 
-      log.error({ err, messageContent: payload }, '[AMQP] Task has an error.');
+      log.error({ lib: 'tokki', err, messageContent: payload }, 'Task has an error.');
 
       await this.channel.nack(message, false, false);
 
@@ -235,7 +234,7 @@ export default class Service<PayloadType extends {} = objectType> {
         });
       }
     } catch (e) {
-      log.fatal({ err: e, errPrevent: err }, '[AMQP] Error handling from task is failed.');
+      log.fatal({ lib: 'tokki', err: e, errPrevent: err }, 'Error handling from task is failed.');
 
       await this.connection.close();
     }
@@ -252,20 +251,8 @@ export default class Service<PayloadType extends {} = objectType> {
 
     // Wait for all tasks to be completed
     while (this.countTasks > 0) {
-      await this.delay(100);
+      await delay(100);
     }
-  }
-
-  /**
-   *
-   * @param ms
-   */
-  delay(ms: number) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve();
-      }, ms);
-    });
   }
 
   /**

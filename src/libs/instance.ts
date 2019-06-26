@@ -28,7 +28,7 @@ export default class Instance extends EventEmitter {
    */
   async initEvents() {
     this.connection.on('close', () => {
-      this.log.info('[AMQP] Connection is closed.');
+      this.log.info({ lib: 'tokki' }, 'Connection is closed.');
 
       this.connection.removeAllListeners('close');
 
@@ -38,19 +38,19 @@ export default class Instance extends EventEmitter {
     });
 
     this.connection.on('error', (err: any) => {
-      this.log.fatal({ err }, '[AMQP] A connection error has occurred.');
+      this.log.fatal({ lib: 'tokki', err }, 'A connection error has occurred.');
 
       this.connection.removeAllListeners('error');
     });
 
     this.channel.on('close', () => {
-      this.log.info('[AMQP] Channel is closed');
+      this.log.info({ lib: 'tokki' }, 'Channel is closed');
 
       this.channel.removeAllListeners('close');
     });
 
     this.channel.on('error', (err: any) => {
-      this.log.fatal({ err }, '[AMQP] A channel error has occurred.');
+      this.log.fatal({ lib: 'tokki', err }, 'A channel error has occurred.');
 
       this.channel.removeAllListeners('error');
 
@@ -135,17 +135,17 @@ export default class Instance extends EventEmitter {
 
     const promises: Array<Promise<void>> = [];
 
-    this.log.info(`[AMQP] Shutdown the service (count: ${this.services.size})`);
+    this.log.info({ lib: 'tokki' }, `Shutdown the service (count: ${this.services.size})`);
     this.services.forEach((service) => {
       promises.push(service.cancel());
     });
 
     await Promise.all(promises);
 
-    this.log.info('[AMQP] Close the channel');
+    this.log.info({ lib: 'tokki' }, 'Close the channel');
     await this.channel.close();
 
-    this.log.info('[AMQP] Close the connection');
+    this.log.info({ lib: 'tokki' }, 'Close the connection');
     await this.connection.close();
   }
 }

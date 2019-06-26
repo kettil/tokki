@@ -28,8 +28,8 @@ describe('Functional Testing', () => {
     expect.assertions(3);
 
     const instance = await connect(
-      log,
       amqpUrl,
+      log,
     );
 
     expect(instance).toBeInstanceOf(Instance);
@@ -53,8 +53,8 @@ describe('Functional Testing', () => {
     expect.assertions(9);
 
     const instance = await connect(
-      log,
       amqpUrl,
+      log,
     );
 
     await instance.channel.deleteExchange('sd-q1');
@@ -121,8 +121,8 @@ describe('Functional Testing', () => {
     expect.assertions(4);
 
     const instance = await connect(
-      log,
       amqpUrl,
+      log,
     );
 
     await instance.channel.deleteExchange('notExistQueue');

@@ -1,3 +1,5 @@
+jest.mock('../helper');
+
 const mockDateNow = jest.spyOn(Date, 'now').mockImplementation();
 
 const mockConnectionClose = jest.fn();
@@ -14,9 +16,9 @@ const mockLogFatal = jest.fn();
 
 import Joi from '@hapi/joi';
 
-import Service from './service';
+import { delay } from '../helper';
 
-jest.useFakeTimers();
+import Service from './service';
 
 /**
  *
@@ -95,25 +97,6 @@ describe('Check the class Service', () => {
   /**
    *
    */
-  test('it should be a delay per setTimeout() when delay() is called', (done) => {
-    expect.assertions(2);
-
-    const promise = service.delay(500);
-
-    jest.runAllTimers();
-
-    promise
-      .then(() => {
-        expect(setTimeout).toHaveBeenCalledTimes(1);
-        expect(setTimeout).toHaveBeenCalledWith(expect.any(Function), 500);
-        done();
-      })
-      .catch(done.fail);
-  });
-
-  /**
-   *
-   */
   describe('Process flow from error handling', () => {
     /**
      *
@@ -145,7 +128,10 @@ describe('Check the class Service', () => {
         expect(Array.isArray(mockErrorServiceSend.mock.calls[0][0].stack)).toBe(true);
 
         expect(mockLogError.mock.calls.length).toBe(1);
-        expect(mockLogError.mock.calls[0]).toEqual([{ err, messageContent: payload }, '[AMQP] Task has an error.']);
+        expect(mockLogError.mock.calls[0]).toEqual([
+          { lib: 'tokki', err, messageContent: payload },
+          'Task has an error.',
+        ]);
       },
     );
 
@@ -175,7 +161,10 @@ describe('Check the class Service', () => {
       ]);
 
       expect(mockLogError.mock.calls.length).toBe(1);
-      expect(mockLogError.mock.calls[0]).toEqual([{ err, messageContent: payload }, '[AMQP] Task has an error.']);
+      expect(mockLogError.mock.calls[0]).toEqual([
+        { lib: 'tokki', err, messageContent: payload },
+        'Task has an error.',
+      ]);
     });
 
     /**
@@ -200,14 +189,14 @@ describe('Check the class Service', () => {
 
       expect(mockLogError.mock.calls.length).toBe(1);
       expect(mockLogError.mock.calls[0]).toEqual([
-        { err: new Error(err1), messageContent: payload },
-        '[AMQP] Task has an error.',
+        { lib: 'tokki', err: new Error(err1), messageContent: payload },
+        'Task has an error.',
       ]);
 
       expect(mockLogFatal.mock.calls.length).toBe(1);
       expect(mockLogFatal.mock.calls[0]).toEqual([
-        { err: new Error(err2), errPrevent: new Error(err1) },
-        '[AMQP] Error handling from task is failed.',
+        { lib: 'tokki', err: new Error(err2), errPrevent: new Error(err1) },
+        'Error handling from task is failed.',
       ]);
     });
 
@@ -240,8 +229,8 @@ describe('Check the class Service', () => {
       expect(mockLogFatal.mock.calls.length).toBe(0);
       expect(mockLogError.mock.calls.length).toBe(1);
       expect(mockLogError.mock.calls[0]).toEqual([
-        { err: new Error(err1), messageContent: expect.any(String) },
-        '[AMQP] Task has an error.',
+        { lib: 'tokki', err: new Error(err1), messageContent: expect.any(String) },
+        'Task has an error.',
       ]);
     });
 
@@ -263,7 +252,10 @@ describe('Check the class Service', () => {
       expect(mockErrorServiceSend.mock.calls.length).toBe(0);
 
       expect(mockLogError.mock.calls.length).toBe(1);
-      expect(mockLogError.mock.calls[0]).toEqual([{ err, messageContent: payload }, '[AMQP] Task has an error.']);
+      expect(mockLogError.mock.calls[0]).toEqual([
+        { lib: 'tokki', err, messageContent: payload },
+        'Task has an error.',
+      ]);
     });
   });
 
@@ -452,7 +444,7 @@ describe('Check the class Service', () => {
       await consumer(null);
 
       expect(mockLogInfo.mock.calls.length).toBe(2);
-      expect(mockLogInfo.mock.calls[1]).toEqual(['[AMQP] New task without consume message']);
+      expect(mockLogInfo.mock.calls[1]).toEqual([{ lib: 'tokki' }, 'New task without consume message']);
     });
 
     /**
@@ -480,8 +472,8 @@ describe('Check the class Service', () => {
 
       expect(mockLogError.mock.calls.length).toBe(1);
       expect(mockLogError.mock.calls[0]).toEqual([
-        { err: new Error(errorMessage), messageContent: payload },
-        '[AMQP] Task has an error.',
+        { lib: 'tokki', err: new Error(errorMessage), messageContent: payload },
+        'Task has an error.',
       ]);
     });
 
@@ -544,7 +536,7 @@ describe('Check the class Service', () => {
       expect(mockLogError.mock.calls[0][0].err.name).toBe('ValidationError');
       expect(mockLogError.mock.calls[0][0].err.message).toBe('child "a" fails because ["a" must be a number]');
       expect(mockLogError.mock.calls[0][0].messageContent).toEqual(payload);
-      expect(mockLogError.mock.calls[0][1]).toBe('[AMQP] Task has an error.');
+      expect(mockLogError.mock.calls[0][1]).toBe('Task has an error.');
     });
 
     /**
@@ -609,8 +601,8 @@ describe('Check the class Service', () => {
 
         expect(mockLogError.mock.calls.length).toBe(1);
         expect(mockLogError.mock.calls[0]).toEqual([
-          { err: new Error('Task was not marked as completed.'), messageContent: payload },
-          '[AMQP] Task has an error.',
+          { lib: 'tokki', err: new Error('Task was not marked as completed.'), messageContent: payload },
+          'Task has an error.',
         ]);
       });
 
@@ -672,9 +664,8 @@ describe('Check the class Service', () => {
       (service as any).countTasks = 2;
       (service as any).consumerTag = 'test-consumer-tag';
 
-      (setTimeout as any).mockImplementation((fn: any, ms: number): any => {
+      (delay as any).mockImplementation((ms: number): any => {
         (service as any).countTasks -= 1;
-        fn();
       });
 
       await service.cancel();
@@ -682,8 +673,8 @@ describe('Check the class Service', () => {
       expect((service as any).consumerTag).toBe('test-consumer-tag');
       expect((service as any).countTasks).toBe(0);
 
-      expect(setTimeout).toHaveBeenCalledTimes(2);
-      expect(setTimeout).toHaveBeenCalledWith(expect.any(Function), expect.any(Number));
+      expect(delay).toHaveBeenCalledTimes(2);
+      expect(delay).toHaveBeenCalledWith(expect.any(Number));
 
       expect(mockChannelCancel).toHaveBeenCalledTimes(1);
       expect(mockChannelCancel).toHaveBeenNthCalledWith(1, 'test-consumer-tag');

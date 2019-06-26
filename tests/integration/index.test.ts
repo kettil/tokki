@@ -93,8 +93,8 @@ describe('Integration Testing', () => {
    */
   test('it should be create a instance when connect() is called', async () => {
     const instance = await connect(
-      log,
       'rabbitmq-url',
+      log,
       2,
     );
 
@@ -126,8 +126,8 @@ describe('Integration Testing', () => {
    */
   test.each(serviceValues)('it should be create a service when %s() is called', async (type, ServiceType) => {
     const instance = await connect(
-      log,
       'rabbitmq-url',
+      log,
     );
 
     const service = await (instance[type] as any)('service-queue');
@@ -138,12 +138,15 @@ describe('Integration Testing', () => {
     expect(mockLogFatal).toHaveBeenCalledTimes(0);
   });
 
+  /**
+   *
+   */
   test('it should be call amqp close() when shtudown is called', async () => {
     const mockConsumer = jest.fn();
 
     const instance = await connect(
-      log,
       'rabbitmq-url',
+      log,
     );
 
     mockAmqpConsume.mockResolvedValueOnce({ consumerTag: queueTag + 'p1' });
@@ -189,8 +192,8 @@ describe('Integration Testing', () => {
      */
     beforeEach(async () => {
       instance = await connect(
-        log,
         'rabbitmq-url',
+        log,
       );
 
       service = await (instance[type] as any)(type + '-queue');
