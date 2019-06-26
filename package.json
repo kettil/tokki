@@ -1,10 +1,9 @@
 {
-  "name": "@kettil/handler-amqp",
+  "name": "tokki",
   "version": "0.0.1",
   "description": "",
   "main": "build/index.js",
   "types": "build/index.d.ts",
-  "private": true,
   "scripts": {
     "build": "npm run build:clean && npm run build:generate",
     "build:clean": "rm -rf ./build",
