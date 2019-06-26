@@ -36,7 +36,7 @@
     "deploy:major": "npm run deploy:pre && npm version major -m 'Release of version v%s' && npm run deploy:post",
     "deploy:minor": "npm run deploy:pre && npm version minor -m 'Release of version v%s' && npm run deploy:post",
     "deploy:patch": "npm run deploy:pre && npm version patch -m 'Release of version v%s' && npm run deploy:post",
-    "deploy:pre": "npm run lint && test:all && npm run build",
+    "deploy:pre": "npm run lint && npm run test:all && npm run build",
     "deploy:post": "git push && git push --tags && npm publish",
     "docker:start": "docker-compose up -d",
     "docker:stop": "docker-compose down -v",
