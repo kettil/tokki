@@ -33,13 +33,13 @@ npm install tokki -D
 
 ## Building
 
-Compile the library from TypeScript to JavaScript.
+Compile the application from TypeScript to JavaScript.
 
 The following command is available:
 
 - `npm run build`
 
-  Builds the library
+  Builds the application
 
 ## Tests
 
