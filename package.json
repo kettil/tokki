@@ -1,7 +1,7 @@
 {
   "name": "tokki",
   "version": "0.1.0",
-  "description": "",
+  "description": "A RabbitMQ/AMQP Handler",
   "main": "build/index.js",
   "types": "build/index.d.ts",
   "scripts": {
@@ -59,6 +59,10 @@
   "license": "MIT",
   "engines": {
     "node": ">= 10"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kettil/tokki"
   },
   "bugs": {
     "url": "https://github.com/kettil/tokki/issues/new"
