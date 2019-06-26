@@ -41,14 +41,6 @@ The worker service distributes the events to the various workers. Each event onl
 See the example on [RabbitMQ](https://www.rabbitmq.com/tutorials/tutorial-two-javascript.html).
 
 ```javascript
-// or with TypeScript
-import tokki from './index';
-
-// create a connection
-const amqp = await tokki({
-  url: 'amqp://user:pwd@localhost:5672',
-});
-
 const trigger = await amqp.worker('worker-queue-name');
 const worker = await amqp.worker('worker-queue-name');
 
