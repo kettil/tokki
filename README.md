@@ -5,8 +5,7 @@ A RabbitMQ/AMQP Handler
 ## Table of Contents
 
 - [Installation](#installation)
-- [Features](#features)
-- [Introduction](#introduction)
+- [Quick start](#quick-start)
 - [Building](#building)
 - [Tests](#tests)
 - [Prettier and Lint](#prettier-and-lint)
@@ -21,15 +20,94 @@ npm install tokki -P
 npm install tokki -D
 ```
 
-## Features
+## Quick start
 
-- ...
-- ...
-- ...
+Create a connection
 
-## Introduction
+```javascript
+const tokki require('tokki');
+// or with TypeScript
+import tokki from 'tokki'
 
-...
+// create a connection
+const amqp = tokki({
+  url: 'amqp://user:pwd@localhost:5672'
+});
+```
+
+### Using workers
+
+The worker service distributes the events to the various workers. Each event only goes to one worker.
+See the example on [RabbitMQ](https://www.rabbitmq.com/tutorials/tutorial-two-javascript.html).
+
+```javascript
+// or with TypeScript
+import tokki from './index';
+
+// create a connection
+const amqp = await tokki({
+  url: 'amqp://user:pwd@localhost:5672',
+});
+
+const trigger = await amqp.worker('worker-queue-name');
+const worker = await amqp.worker('worker-queue-name');
+
+// or with error queue
+const error = await amqp.worker('error-queue-name');
+const worker = await amqp.worker('worker-queue-name', error);
+
+// define a consumer
+worker.setConsumer(async (data) => {
+  // data.payload.message = imported
+
+  // ...
+
+  // job is successful
+  data.next();
+
+  // or
+
+  // job is failed (but requeue)
+  data.defer();
+
+  // or
+
+  // job is failed
+  data.discard();
+});
+// the second parameter of setConsumer() is an optional [JOI](https://github.com/hapijs/joi)
+// schema definition for the payload
+
+// send a payload to queue
+trigger.send({ message: 'imported' });
+```
+
+### Using publishers
+
+The Publish Service distributes the events to all publishers.
+See the example on [RabbitMQ](https://www.rabbitmq.com/tutorials/tutorial-three-javascript.html).
+
+```javascript
+const trigger = await amqp.publisher('publish-queue-name');
+
+const publisher1 = await amqp.publisher('publish-queue-name');
+
+// publisher with error queue
+const error = await amqp.worker('error-publish-queue-name');
+const publisher2 = await amqp.publisher('publish-queue-name', error);
+
+publisher1.setConsumer(async (data) => {
+  // see worker section
+  // data.payload.message = imported
+});
+publisher2.setConsumer(async (data) => {
+  // see worker section
+  // data.payload.message = imported
+});
+
+// send a payload to queue
+trigger.send({ message: 'imported' });
+```
 
 ## Building
 
