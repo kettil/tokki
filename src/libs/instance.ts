@@ -1,14 +1,16 @@
-import { EventEmitter } from 'events';
-
 import { Channel, Connection } from 'amqplib';
 
+import EventEmitter from './eventEmitter';
 import PublisherService from './services/publisher';
 import AbstractService from './services/service';
 import WorkerService from './services/worker';
 
-import { InterfaceLogger, objectType, servicesType } from './types';
+import { InterfaceLogger, objectType, serviceArgsType, servicesType } from './types';
 
-export default class Instance extends EventEmitter {
+/**
+ *
+ */
+export default class Instance extends EventEmitter<'close'> {
   protected isClosed: boolean = false;
 
   protected services: servicesType = new Map();
@@ -27,14 +29,19 @@ export default class Instance extends EventEmitter {
    *
    */
   async initEvents() {
-    this.connection.on('close', () => {
-      this.log.info({ lib: 'tokki' }, 'Connection is closed.');
+    this.connection.on('close', async () => {
+      try {
+        this.log.info({ lib: 'tokki' }, 'Connection is closed.');
 
-      this.connection.removeAllListeners('close');
+        this.connection.removeAllListeners('close');
 
-      this.isClosed = true;
-      // call the close event from this class
-      this.emit('close');
+        this.isClosed = true;
+
+        // call the close event from this class
+        await this.emit('close');
+      } catch (err) {
+        process.emit('uncaughtException', err);
+      }
     });
 
     this.connection.on('error', (err: any) => {
@@ -64,14 +71,10 @@ export default class Instance extends EventEmitter {
    *
    * The error queue must first be initialized.
    *
-   * @param name
-   * @param errorService
+   * @param param0
    */
-  async worker<PayloadType extends {} = objectType>(
-    name: string,
-    errorService?: AbstractService,
-  ): Promise<WorkerService<PayloadType>> {
-    return this.createService(WorkerService, name, errorService);
+  async worker<PayloadType extends {} = objectType>(param0: serviceArgsType): Promise<WorkerService<PayloadType>> {
+    return this.createService({ ...param0, Service: WorkerService });
   }
 
   /**
@@ -80,28 +83,29 @@ export default class Instance extends EventEmitter {
    *
    * The error queue must first be initialized.
    *
-   * @param name
-   * @param errorService
+   * @param param0
    */
   async publisher<PayloadType extends {} = objectType>(
-    name: string,
-    errorService?: AbstractService,
+    param0: serviceArgsType,
   ): Promise<PublisherService<PayloadType>> {
-    return this.createService(PublisherService, name, errorService);
+    return this.createService({ ...param0, Service: PublisherService });
   }
 
   /**
    *
-   * @param Service
-   * @param name
-   * @param errorService
+   * @param param0
    */
-  async createService<PayloadType extends {} = objectType>(
-    Service: typeof AbstractService,
-    name: string,
-    errorService?: AbstractService,
-    id: string = name,
-  ): Promise<AbstractService<PayloadType>> {
+  async createService<PayloadType extends {} = objectType>({
+    Service,
+    name,
+    errorService,
+    schema,
+    closeConnectionByError = true,
+    id = name,
+  }: serviceArgsType & {
+    Service: typeof AbstractService;
+    id?: string;
+  }): Promise<AbstractService<PayloadType>> {
     if (typeof name !== 'string' || name.trim() === '') {
       throw new Error('Queue name is missing');
     }
@@ -111,7 +115,13 @@ export default class Instance extends EventEmitter {
     if (!service) {
       const logChild = this.log.child({ queue: name, type: Service.name.toLowerCase() });
 
-      service = new Service<PayloadType>(logChild, this, name, errorService);
+      service = new Service<PayloadType>(logChild, this, name, errorService, schema);
+
+      if (closeConnectionByError) {
+        service.on('error', async () => {
+          await this.connection.close();
+        });
+      }
 
       this.services.set(id, service);
     } else if (!(service instanceof Service)) {
@@ -135,7 +145,7 @@ export default class Instance extends EventEmitter {
 
     const promises: Array<Promise<void>> = [];
 
-    this.log.info({ lib: 'tokki' }, `Shutdown the service (count: ${this.services.size})`);
+    this.log.info({ lib: 'tokki' }, `Shutdown the services (count: ${this.services.size})`);
     this.services.forEach((service) => {
       promises.push(service.cancel());
     });

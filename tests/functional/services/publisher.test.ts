@@ -55,20 +55,18 @@ describe('Check the service worker', () => {
 
     const mockPayload = jest.fn();
 
-    const publisher1 = await instance.createService<{ z: string }>(
-      Publisher,
-      'publisher-queue',
-      undefined,
-      'publisher-queue-1',
-    );
-    const publisher2 = await instance.createService<{ z: string }>(
-      Publisher,
-      'publisher-queue',
-      undefined,
-      'publisher-queue-2',
-    );
+    const publisher1 = await instance.createService<{ z: string }>({
+      Service: Publisher,
+      name: 'publisher-queue',
+      id: 'publisher-queue-1',
+    });
+    const publisher2 = await instance.createService<{ z: string }>({
+      Service: Publisher,
+      name: 'publisher-queue',
+      id: 'publisher-queue-2',
+    });
 
-    const publisher = await instance.publisher<{ z: string }>('publisher-queue');
+    const publisher = await instance.publisher<{ z: string }>({ name: 'publisher-queue' });
 
     let i = 0;
 

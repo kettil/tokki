@@ -40,7 +40,15 @@ The worker service distributes the events to the various workers. Each event onl
 See the example on [RabbitMQ](https://www.rabbitmq.com/tutorials/tutorial-two-javascript.html).
 
 ```javascript
+// trigger
+
 const trigger = await amqp.worker('worker-queue-name');
+
+// send a payload to queue
+trigger.send({ message: 'imported' });
+
+// consumer
+
 const worker = await amqp.worker('worker-queue-name');
 
 // or with error queue
@@ -68,9 +76,6 @@ worker.setConsumer(async (data) => {
 });
 // the second parameter of setConsumer() is an optional [JOI](https://github.com/hapijs/joi)
 // schema definition for the payload
-
-// send a payload to queue
-trigger.send({ message: 'imported' });
 ```
 
 ### Using publishers

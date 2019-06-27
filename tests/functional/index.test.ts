@@ -78,8 +78,8 @@ describe('Functional Testing', () => {
       await d.next();
     });
 
-    const worker1 = await instance.worker<{ z: number }>('sd-q1');
-    const worker2 = await instance.worker<{ z: number }>('sd-q2');
+    const worker1 = await instance.worker<{ z: number }>({ name: 'sd-q1' });
+    const worker2 = await instance.worker<{ z: number }>({ name: 'sd-q2' });
 
     await worker1.setConsumer(mockConsumer1);
     await worker2.setConsumer(mockConsumer2);

@@ -42,7 +42,7 @@ describe('Check the service worker', () => {
     await instance.channel.deleteExchange(queueName);
     await instance.channel.deleteQueue(queueName);
 
-    worker = await instance.worker(queueName);
+    worker = await instance.worker({ name: queueName });
   });
 
   /**
@@ -101,8 +101,16 @@ describe('Check the service worker', () => {
       await data.next();
     };
 
-    const worker1 = await instance.createService<payloadType>(Worker, queueName, undefined, queueName + '-1');
-    const worker2 = await instance.createService<payloadType>(Worker, queueName, undefined, queueName + '-2');
+    const worker1 = await instance.createService<payloadType>({
+      Service: Worker,
+      name: queueName,
+      id: queueName + '-1',
+    });
+    const worker2 = await instance.createService<payloadType>({
+      Service: Worker,
+      name: queueName,
+      id: queueName + '-2',
+    });
 
     await worker1.setConsumer(consumer1);
     await worker2.setConsumer(consumer1);
@@ -265,7 +273,7 @@ describe('Check the service worker', () => {
     await instance.channel.deleteExchange(queueName1);
     await instance.channel.deleteQueue(queueName1);
 
-    const worker1 = await instance.worker(queueName1, worker);
+    const worker1 = await instance.worker({ name: queueName1, errorService: worker });
 
     consumer = async (data) => {
       mockPayload(data.payload);

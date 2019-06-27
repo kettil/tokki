@@ -1,3 +1,5 @@
+import Joi from '@hapi/joi';
+
 import Service from './services/service';
 
 /**
@@ -8,6 +10,16 @@ export type connectArgsType = {
   log?: InterfaceLogger;
   prefetch?: number;
   options?: any;
+};
+
+/**
+ *
+ */
+export type serviceArgsType = {
+  name: string;
+  errorService?: Service;
+  schema?: Joi.ObjectSchema;
+  closeConnectionByError?: boolean;
 };
 
 /**
@@ -44,10 +56,10 @@ export type consumerDataType<Payload> = {
  */
 export type errorPayloadType<Payload> = {
   queue: string;
-  payload: Payload;
+  payload: Payload | string;
   name: string;
   message: string;
-  stack: string[];
+  stack: string;
 };
 
 /**

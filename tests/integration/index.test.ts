@@ -130,7 +130,7 @@ describe('Integration Testing', () => {
       log,
     });
 
-    const service = await (instance[type] as any)('service-queue');
+    const service = await (instance[type] as any)({ name: 'service-queue' });
 
     expect(service).toBeInstanceOf(ServiceType);
 
@@ -146,7 +146,6 @@ describe('Integration Testing', () => {
 
     const instance = await connect({
       url: 'rabbitmq-url',
-      log,
     });
 
     mockAmqpConsume.mockResolvedValueOnce({ consumerTag: queueTag + 'p1' });
@@ -154,11 +153,11 @@ describe('Integration Testing', () => {
     mockAmqpConsume.mockResolvedValueOnce({ consumerTag: queueTag + 'w1' });
     mockAmqpConsume.mockResolvedValueOnce({ consumerTag: queueTag + 'w2' });
 
-    const p1 = await instance.publisher('p1');
-    const p2 = await instance.publisher('p2');
-    const w1 = await instance.worker('w1');
-    const w2 = await instance.worker('w2');
-    const w3 = await instance.worker('w3');
+    const p1 = await instance.publisher({ name: 'p1' });
+    const p2 = await instance.publisher({ name: 'p2' });
+    const w1 = await instance.worker({ name: 'w1' });
+    const w2 = await instance.worker({ name: 'w2' });
+    const w3 = await instance.worker({ name: 'w3' });
 
     await p1.setConsumer(mockConsumer);
     await p2.setConsumer(mockConsumer);
@@ -196,7 +195,7 @@ describe('Integration Testing', () => {
         log,
       });
 
-      service = await (instance[type] as any)(type + '-queue');
+      service = await (instance[type] as any)({ name: type + '-queue' });
     });
 
     /**
@@ -308,7 +307,7 @@ describe('Integration Testing', () => {
 
       expect.assertions(9);
 
-      const service2 = await (instance[type] as any)(type + '-queue-2', service);
+      const service2 = await (instance[type] as any)({ name: type + '-queue-2', errorService: service });
       const error = new Error('Consumer Error with forwading');
 
       const mockConsumer = jest.fn(async (data: consumerDataType<any>) => {
@@ -340,7 +339,7 @@ describe('Integration Testing', () => {
             payload,
             name: error.name,
             message: error.message,
-            stack: error.stack ? error.stack.split('\n') : [],
+            stack: error.stack ? error.stack : [],
           }),
         ),
         { persistent: true, priority, timestamp: 1987654321098 },

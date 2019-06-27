@@ -1,8 +1,8 @@
 jest.mock('../helper');
 
 const mockDateNow = jest.spyOn(Date, 'now').mockImplementation();
+const mockProcessEmit = jest.spyOn(process, 'emit').mockImplementation();
 
-const mockConnectionClose = jest.fn();
 const mockChannelPublish = jest.fn();
 const mockChannelConsume = jest.fn().mockResolvedValue({ consumerTag: 'abcdef' });
 const mockChannelCancel = jest.fn();
@@ -11,8 +11,6 @@ const mockChannelAck = jest.fn();
 const mockServicesGet = jest.fn();
 const mockErrorServiceSend = jest.fn();
 const mockLogInfo = jest.fn();
-const mockLogError = jest.fn();
-const mockLogFatal = jest.fn();
 
 import Joi from '@hapi/joi';
 
@@ -36,10 +34,6 @@ describe('Check the class Service', () => {
    *
    */
   beforeEach(() => {
-    const connection = {
-      close: mockConnectionClose,
-    };
-
     const channel = {
       publish: mockChannelPublish,
       consume: mockChannelConsume,
@@ -50,10 +44,10 @@ describe('Check the class Service', () => {
 
     log = {
       child: () => log,
-      debug: () => {}, // tslint:disable-line: no-empty
+      debug: () => true,
       info: mockLogInfo,
-      error: mockLogError,
-      fatal: mockLogFatal,
+      error: () => true,
+      fatal: () => true,
     } as any;
 
     errorService = {
@@ -65,7 +59,6 @@ describe('Check the class Service', () => {
     };
 
     instance = {
-      connection,
       channel,
       services,
     };
@@ -110,37 +103,62 @@ describe('Check the class Service', () => {
     test.each(testErrorHandlingValue)(
       'it should be handled in errorHandling() an %s',
       async (t, err, errName, errMsg) => {
-        const payload = { a: 'z', b: 42, t: true };
-        const message: any = { content: Buffer.from(JSON.stringify(payload)) };
+        expect.assertions(7);
 
-        await (service as any).errorHandling(log, message, err);
+        return new Promise(async (resolve, reject) => {
+          const payload = { a: 'z', b: 42, t: true };
+          const message: any = { content: Buffer.from(JSON.stringify(payload)) };
 
-        expect(mockChannelNack.mock.calls.length).toBe(1);
-        expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);
-        expect(mockErrorServiceSend.mock.calls.length).toBe(1);
-        expect(mockErrorServiceSend.mock.calls[0][0].payload).toEqual(payload);
-        expect(mockErrorServiceSend.mock.calls[0][0].queue).toBe(name);
-        expect(mockErrorServiceSend.mock.calls[0][0].name).toBe(errName);
-        expect(mockErrorServiceSend.mock.calls[0][0].message).toBe(errMsg);
-        expect(Array.isArray(mockErrorServiceSend.mock.calls[0][0].stack)).toBe(true);
+          service.on('error-task', async (err2, data) => {
+            try {
+              expect(err2).toBeInstanceOf(Error);
+              expect(err2.message).toBe(errMsg);
 
-        expect(mockLogError.mock.calls.length).toBe(1);
-        expect(mockLogError.mock.calls[0]).toEqual([
-          { lib: 'tokki', err, messageContent: payload },
-          'Task has an error.',
-        ]);
+              expect(data).toEqual(payload);
+            } catch (e) {
+              reject(e);
+            }
+          });
+
+          await (service as any).errorHandling(log, message, err);
+
+          expect(mockChannelNack.mock.calls.length).toBe(1);
+          expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);
+
+          expect(mockErrorServiceSend).toHaveBeenCalledTimes(1);
+          expect(mockErrorServiceSend).toHaveBeenNthCalledWith(1, {
+            payload,
+            queue: name,
+            name: errName,
+            message: errMsg,
+            stack: expect.any(String),
+          });
+
+          resolve();
+        });
       },
     );
 
     /**
      *
      */
-    test('it should be handled in errorHandling() an error object without stack', async () => {
+    test('it should be handled in errorHandling() an error object without stack', async (done) => {
       const err = new Error('test-error');
       const payload = { a: 'z', b: 42, t: true };
       const message: any = { content: Buffer.from(JSON.stringify(payload)) };
 
       err.stack = undefined;
+
+      service.on('error-task', async (err2, data) => {
+        try {
+          expect(err2).toBeInstanceOf(Error);
+          expect(err2.message).toBe('test-error');
+
+          expect(data).toEqual(payload);
+        } catch (e) {
+          done(e);
+        }
+      });
 
       await (service as any).errorHandling(log, message, err);
 
@@ -153,22 +171,18 @@ describe('Check the class Service', () => {
           queue: name,
           name: err.name,
           message: 'test-error',
-          stack: [],
+          stack: '',
         },
       ]);
 
-      expect(mockLogError.mock.calls.length).toBe(1);
-      expect(mockLogError.mock.calls[0]).toEqual([
-        { lib: 'tokki', err, messageContent: payload },
-        'Task has an error.',
-      ]);
+      done();
     });
 
     /**
      *
      */
-    test('it should be handled in errorHandling() an error object and throw a sub error', async () => {
-      expect.assertions(8);
+    test('it should be handled in errorHandling() an error object and throw a sub error', async (done) => {
+      expect.assertions(5);
 
       const err1 = 'test-error';
       const err2 = 'test-channel-error';
@@ -177,34 +191,70 @@ describe('Check the class Service', () => {
 
       mockChannelNack.mockRejectedValueOnce(new Error(err2));
 
+      service.on('error', async (err) => {
+        try {
+          expect(err).toBeInstanceOf(Error);
+          expect(err.message).toBe('test-channel-error');
+        } catch (e) {
+          done(e);
+        }
+      });
+
       await (service as any).errorHandling(log, message, new Error(err1));
 
       expect(mockChannelNack.mock.calls.length).toBe(1);
       expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);
       expect(mockErrorServiceSend.mock.calls.length).toBe(0);
-      expect(mockConnectionClose.mock.calls.length).toBe(1);
 
-      expect(mockLogError.mock.calls.length).toBe(1);
-      expect(mockLogError.mock.calls[0]).toEqual([
-        { lib: 'tokki', err: new Error(err1), messageContent: payload },
-        'Task has an error.',
-      ]);
-
-      expect(mockLogFatal.mock.calls.length).toBe(1);
-      expect(mockLogFatal.mock.calls[0]).toEqual([
-        { lib: 'tokki', err: new Error(err2), errPrevent: new Error(err1) },
-        'Error handling from task is failed.',
-      ]);
+      done();
     });
 
     /**
      *
      */
-    test('it should be handled the error when errorHandling() is called with invalid JSON', async () => {
-      expect.assertions(8);
+    test('it should be handled in errorHandling() an error object and throw a error in the error event', async () => {
+      expect.assertions(5);
+
+      const err1 = 'test-error';
+      const err2 = 'test-channel-error';
+      const payload = { a: 'z', b: 42, t: true };
+      const message: any = { content: Buffer.from(JSON.stringify(payload)) };
+
+      mockChannelNack.mockRejectedValueOnce(new Error(err2));
+
+      service.on('error', async (err) => {
+        throw new Error('event-error');
+      });
+
+      await (service as any).errorHandling(log, message, new Error(err1));
+
+      expect(mockChannelNack.mock.calls.length).toBe(1);
+      expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);
+      expect(mockErrorServiceSend.mock.calls.length).toBe(0);
+
+      expect(mockProcessEmit).toHaveBeenCalledTimes(1);
+      expect(mockProcessEmit).toHaveBeenNthCalledWith(1, 'uncaughtException', new Error('event-error'));
+    });
+
+    /**
+     *
+     */
+    test('it should be handled the error when errorHandling() is called with invalid JSON', async (done) => {
+      expect.assertions(7);
 
       const err1 = 'test-error';
       const message: any = { content: Buffer.from('{a:"z",b:42,t:true}') };
+
+      service.on('error-task', async (err, data) => {
+        try {
+          expect(err).toBeInstanceOf(Error);
+          expect(err.message).toBe('test-error');
+
+          expect(data).toEqual('{a:"z",b:42,t:true}');
+        } catch (e) {
+          done(e);
+        }
+      });
 
       await (service as any).errorHandling(log, message, new Error(err1));
 
@@ -217,24 +267,19 @@ describe('Check the class Service', () => {
           queue: name,
           message: 'test-error',
           name: 'Error',
-          stack: expect.any(Array),
+          stack: expect.any(String),
         },
       ]);
 
-      expect(mockConnectionClose.mock.calls.length).toBe(0);
-
-      expect(mockLogFatal.mock.calls.length).toBe(0);
-      expect(mockLogError.mock.calls.length).toBe(1);
-      expect(mockLogError.mock.calls[0]).toEqual([
-        { lib: 'tokki', err: new Error(err1), messageContent: expect.any(String) },
-        'Task has an error.',
-      ]);
+      done();
     });
 
     /**
      *
      */
-    test('it should be handled the error without send to the other queue when errorHandling() is called', async () => {
+    test('it should be handled the error without send to the other queue when errorHandling() is called', async (done) => {
+      expect.assertions(6);
+
       // create an instance from a abstract class
       service = new Service(log, instance, name);
 
@@ -242,17 +287,24 @@ describe('Check the class Service', () => {
       const payload = { a: 'z', b: 42, t: true };
       const message: any = { content: Buffer.from(JSON.stringify(payload)) };
 
+      service.on('error-task', async (err2, data) => {
+        try {
+          expect(err2).toBeInstanceOf(Error);
+          expect(err2.message).toBe('test-error');
+
+          expect(data).toEqual(payload);
+        } catch (e) {
+          done(e);
+        }
+      });
+
       await (service as any).errorHandling(log, message, err);
 
       expect(mockChannelNack.mock.calls.length).toBe(1);
       expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);
       expect(mockErrorServiceSend.mock.calls.length).toBe(0);
 
-      expect(mockLogError.mock.calls.length).toBe(1);
-      expect(mockLogError.mock.calls[0]).toEqual([
-        { lib: 'tokki', err, messageContent: payload },
-        'Task has an error.',
-      ]);
+      done();
     });
   });
 
@@ -447,13 +499,24 @@ describe('Check the class Service', () => {
     /**
      *
      */
-    test('it should be internal consumer catched an error when consumer callback throw an error', async () => {
-      expect.assertions(6);
+    test('it should be internal consumer catched an error when consumer callback throw an error', async (done) => {
+      expect.assertions(7);
 
       const errorMessage = 'error-message';
       const mockWorker = jest.fn(() => Promise.reject(new Error(errorMessage)));
       const payload = { a: 'z', b: 42, t: true };
       const message = { content: Buffer.from(JSON.stringify(payload)), properties: { messageId: '13579' } };
+
+      service.on('error-task', async (err, data) => {
+        try {
+          expect(err).toBeInstanceOf(Error);
+          expect(err.message).toBe('error-message');
+
+          expect(data).toEqual(payload);
+        } catch (e) {
+          done(e);
+        }
+      });
 
       await service.setConsumer(mockWorker);
 
@@ -467,11 +530,7 @@ describe('Check the class Service', () => {
       expect(mockChannelNack.mock.calls.length).toBe(1);
       expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);
 
-      expect(mockLogError.mock.calls.length).toBe(1);
-      expect(mockLogError.mock.calls[0]).toEqual([
-        { lib: 'tokki', err: new Error(errorMessage), messageContent: payload },
-        'Task has an error.',
-      ]);
+      done();
     });
 
     /**
@@ -489,7 +548,9 @@ describe('Check the class Service', () => {
         b: Joi.number(),
       });
 
-      await service.setConsumer(mockWorker, schema);
+      service = new Service(log, instance, name, errorService, schema);
+
+      await service.setConsumer(mockWorker);
 
       expect(mockChannelConsume.mock.calls.length).toBe(1);
       expect(mockChannelConsume.mock.calls[0]).toEqual(['test-queue', expect.any(Function), { noAck: false }]);
@@ -505,7 +566,9 @@ describe('Check the class Service', () => {
     /**
      *
      */
-    test('it should be throw an error when a joi schema is delivered and payload is invalidate', async () => {
+    test('it should be throw an error when a joi schema is delivered and payload is invalidate', async (done) => {
+      expect.assertions(8);
+
       const mockWorker = jest.fn();
       const payload = { a: 'z', b: 42, t: true };
       const message = { content: Buffer.from(JSON.stringify(payload)), properties: { messageId: '13579' } };
@@ -515,7 +578,20 @@ describe('Check the class Service', () => {
         b: Joi.number(),
       });
 
-      await service.setConsumer(mockWorker, schema);
+      service = new Service(log, instance, name, errorService, schema);
+
+      service.on('error-task', async (err, data) => {
+        try {
+          expect(err).toBeInstanceOf(Error);
+          expect(err.message).toBe('child "a" fails because ["a" must be a number]');
+
+          expect(data).toEqual(payload);
+        } catch (e) {
+          done(e);
+        }
+      });
+
+      await service.setConsumer(mockWorker);
 
       expect(mockChannelConsume.mock.calls.length).toBe(1);
       expect(mockChannelConsume.mock.calls[0]).toEqual(['test-queue', expect.any(Function), { noAck: false }]);
@@ -529,11 +605,7 @@ describe('Check the class Service', () => {
       expect(mockChannelNack.mock.calls.length).toBe(1);
       expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);
 
-      expect(mockLogError).toHaveBeenCalledTimes(1);
-      expect(mockLogError.mock.calls[0][0].err.name).toBe('ValidationError');
-      expect(mockLogError.mock.calls[0][0].err.message).toBe('child "a" fails because ["a" must be a number]');
-      expect(mockLogError.mock.calls[0][0].messageContent).toEqual(payload);
-      expect(mockLogError.mock.calls[0][1]).toBe('Task has an error.');
+      done();
     });
 
     /**
@@ -588,19 +660,26 @@ describe('Check the class Service', () => {
       /**
        *
        */
-      test('it should be without confirmation the task when consumer callback is called', async () => {
-        expect.assertions(4);
+      test('it should be without confirmation the task when consumer callback is called', async (done) => {
+        expect.assertions(5);
+
+        service.on('error-task', async (err, data) => {
+          try {
+            expect(err).toBeInstanceOf(Error);
+            expect(err.message).toBe('Task was not marked as completed.');
+
+            expect(data).toEqual(payload);
+          } catch (e) {
+            done(e);
+          }
+        });
 
         await consumer(message);
 
         expect(mockChannelNack.mock.calls.length).toBe(1);
         expect(mockChannelNack.mock.calls[0]).toEqual([message, false, false]);
 
-        expect(mockLogError.mock.calls.length).toBe(1);
-        expect(mockLogError.mock.calls[0]).toEqual([
-          { lib: 'tokki', err: new Error('Task was not marked as completed.'), messageContent: payload },
-          'Task has an error.',
-        ]);
+        done();
       });
 
       /**

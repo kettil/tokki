@@ -1,3 +1,5 @@
+const mockProcessEmit = jest.spyOn(process, 'emit').mockImplementation();
+
 const mockLogFatal = jest.fn();
 const mockConnectionOn = jest.fn();
 const mockConnectionClose = jest.fn();
@@ -73,12 +75,7 @@ describe('Check the class Instance', () => {
    *
    */
   test('Initialize the events', async () => {
-    // No events are registere
-    expect(instance.eventNames()).toEqual([]);
-
     instance.initEvents();
-
-    expect(instance.eventNames()).toEqual([]);
 
     expect(mockConnectionOn.mock.calls.length).toBe(2);
     expect(mockConnectionOn.mock.calls[0][0]).toBe('close');
@@ -127,6 +124,38 @@ describe('Check the class Instance', () => {
       expect(mockClose.mock.calls[0]).toEqual([]);
 
       expect((instance as any).isClosed).toBe(true);
+    });
+
+    /**
+     *
+     */
+    test('it should be call the connection close event when this is triggered with a event error', async () => {
+      expect(mockConnectionOn.mock.calls.length).toBe(2);
+      expect(mockConnectionOn.mock.calls[0][0]).toBe('close');
+      expect(typeof mockConnectionOn.mock.calls[0][1]).toBe('function');
+
+      instance.on('close', async () => {
+        throw new Error('event-error');
+      });
+
+      const event = mockConnectionOn.mock.calls[0][1];
+      const mockClose = jest.fn();
+
+      instance.on('close', mockClose);
+
+      // Call the function to be tested.
+      await event();
+
+      expect(mockConnectionRemoveAllListeners.mock.calls.length).toBe(1);
+      expect(mockConnectionRemoveAllListeners.mock.calls[0]).toEqual(['close']);
+
+      expect(mockClose.mock.calls.length).toBe(1);
+      expect(mockClose.mock.calls[0]).toEqual([]);
+
+      expect((instance as any).isClosed).toBe(true);
+
+      expect(mockProcessEmit).toHaveBeenCalledTimes(1);
+      expect(mockProcessEmit).toHaveBeenNthCalledWith(1, 'uncaughtException', new Error('event-error'));
     });
 
     /**
@@ -207,7 +236,7 @@ describe('Check the class Instance', () => {
     test('it should be return a service when function createService() is called', async () => {
       const name = 'queue-name';
 
-      const service = await instance.createService(Service, name, mockServiceError as any);
+      const service = await instance.createService({ Service, name, errorService: mockServiceError as any });
 
       expect(service).toBeInstanceOf(Service);
 
@@ -219,6 +248,9 @@ describe('Check the class Instance', () => {
 
       expect((instance as any).services.size).toBe(1);
       expect((instance as any).services.get(name)).toBe(service);
+
+      expect(Service.prototype.on).toHaveBeenCalledTimes(1);
+      expect(Service.prototype.on).toHaveBeenNthCalledWith(1, 'error', expect.any(Function));
     });
 
     /**
@@ -227,8 +259,13 @@ describe('Check the class Instance', () => {
     test('it should be return same service when function createService() is called twice', async () => {
       const name = 'queue-name-2';
 
-      const service1 = await instance.createService(Service, name, mockServiceError as any);
-      const service2 = await instance.createService(Service, name);
+      const service1 = await instance.createService({
+        Service,
+        name,
+        errorService: mockServiceError as any,
+        closeConnectionByError: false,
+      });
+      const service2 = await instance.createService({ Service, name });
 
       expect(service2).toBe(service1);
 
@@ -239,14 +276,36 @@ describe('Check the class Instance', () => {
     /**
      *
      */
+    test('it should call the connection.close() when createService() is called and an error event is trigger', async () => {
+      const name = 'queue-name-2';
+
+      await instance.createService({
+        Service,
+        name,
+        errorService: mockServiceError as any,
+      });
+
+      expect(Service.prototype.on).toHaveBeenCalledTimes(1);
+      expect(Service.prototype.on).toHaveBeenNthCalledWith(1, 'error', expect.any(Function));
+
+      const cb = (Service.prototype.on as jest.Mock).mock.calls[0][1];
+
+      await cb();
+
+      expect(mockConnectionClose).toHaveBeenCalledTimes(1);
+    });
+
+    /**
+     *
+     */
     test('it should be throw an error when function createService() is called twice with different services', async () => {
       const name = 'queue-name-2';
 
       expect.assertions(2);
       try {
-        await instance.createService(WorkerService, name);
+        await instance.createService({ Service: WorkerService, name });
 
-        await instance.createService(PublisherService, name);
+        await instance.createService({ Service: PublisherService, name });
       } catch (err) {
         expect(err).toBeInstanceOf(Error);
         expect(err.message).toBe(`Queue "${name}" is a "worker" (deliver: publisher)`);
@@ -259,7 +318,7 @@ describe('Check the class Instance', () => {
     test('it should be throw an error when function createService() is called without queue name', async () => {
       expect.assertions(2);
       try {
-        await instance.createService(WorkerService, '');
+        await instance.createService({ Service: WorkerService, name: '' });
       } catch (err) {
         expect(err).toBeInstanceOf(Error);
         expect(err.message).toBe(`Queue name is missing`);
@@ -275,7 +334,7 @@ describe('Check the class Instance', () => {
     ])('it should be return a worker when function %s() is called', async (type, ServiceClass) => {
       const name = type + '-queue-name';
 
-      const service = await (instance[type] as any)(name, mockServiceError as any);
+      const service = await (instance[type] as any)({ name, errorService: mockServiceError as any });
 
       expect(service).toBeInstanceOf(ServiceClass);
 
@@ -309,7 +368,7 @@ describe('Check the class Instance', () => {
      *
      */
     test('it should be called service cancel function when function close() is called with one service', async () => {
-      const w1 = await instance.worker('w1');
+      const w1 = await instance.worker({ name: 'w1' });
 
       await instance.close();
 
@@ -325,9 +384,9 @@ describe('Check the class Instance', () => {
      *
      */
     test('it should be called service cancel function when function close() is called with three services', async () => {
-      const w1 = await instance.worker('w1');
-      const p1 = await instance.publisher('p1');
-      const p2 = await instance.publisher('p2');
+      const w1 = await instance.worker({ name: 'w1' });
+      const p1 = await instance.publisher({ name: 'p1' });
+      const p2 = await instance.publisher({ name: 'p2' });
 
       await instance.close();
 
@@ -345,9 +404,9 @@ describe('Check the class Instance', () => {
      *
      */
     test('it should be not called service cancel() when close() is called and isClosed is true', async () => {
-      const w1 = await instance.worker('w1');
-      const p1 = await instance.publisher('p1');
-      const p2 = await instance.publisher('p2');
+      const w1 = await instance.worker({ name: 'w1' });
+      const p1 = await instance.publisher({ name: 'p1' });
+      const p2 = await instance.publisher({ name: 'p2' });
 
       (instance as any).isClosed = true;
 
