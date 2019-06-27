@@ -9,7 +9,6 @@ A RabbitMQ/AMQP Handler
 - [Building](#building)
 - [Tests](#tests)
 - [Prettier and Lint](#prettier-and-lint)
-- [Docs](#docs)
 
 ## Installation
 
@@ -163,13 +162,3 @@ The following commands are available:
 - `npm run lint`
 
   Checks if the lint rules are followed. It calls the prettier command first.
-
-## Docs
-
-Creates documentation from the comments in the source code.
-
-The following command is available:
-
-- `npm run docs`
-
-  Creates documentation from the source code

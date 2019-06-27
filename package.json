@@ -30,9 +30,6 @@
     "lint:ci": "tslint --project ./tsconfig.json --config ./tslint.json --format codeFrame",
     "prettier": "prettier --config './.prettierrc' --write '.huskyrc' '.prettierrc' './**/*.{ts,tsx,js,jsx,json,md,scss,yml,html}'",
     "prettier:ci": "prettier --config './.prettierrc' --list-different '.huskyrc' '.prettierrc' './**/*.{ts,tsx,js,jsx,json,md,scss,yml,html}'",
-    "docs": "npm run docs:clean && npm run docs:generate",
-    "docs:clean": "rm -rf ./docs",
-    "docs:generate": "typedoc --options './typedoc.json' './src'",
     "deploy:major": "npm run deploy:pre && npm version major -m 'Release of version v%s' && npm run deploy:post",
     "deploy:minor": "npm run deploy:pre && npm version minor -m 'Release of version v%s' && npm run deploy:post",
     "deploy:patch": "npm run deploy:pre && npm version patch -m 'Release of version v%s' && npm run deploy:post",
@@ -81,7 +78,6 @@
     "tslint-config-prettier": "^1.15.0",
     "tslint-immutable": "^6.0.0",
     "tslint-react": "^4.0.0",
-    "typedoc": "^0.14.0",
     "typescript": "^3.5.2"
   },
   "dependencies": {
