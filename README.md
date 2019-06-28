@@ -42,18 +42,20 @@ See the example on [RabbitMQ](https://www.rabbitmq.com/tutorials/tutorial-two-ja
 ```javascript
 // trigger
 
-const trigger = await amqp.worker('worker-queue-name');
+const trigger = await amqp.worker({ name: 'worker-queue-name' });
 
 // send a payload to queue
 trigger.send({ message: 'imported' });
 
 // consumer
 
-const worker = await amqp.worker('worker-queue-name');
+const worker = await amqp.worker({ name: 'worker-queue-name' });
 
 // or with error queue
-const error = await amqp.worker('error-queue-name');
-const worker = await amqp.worker('worker-queue-name', error);
+const error = await amqp.worker({ name: 'error-queue-name' });
+const worker = await amqp.worker({ name: 'worker-queue-name', errorService: error });
+
+// Optionally, a schema ([JOI](https://github.com/hapijs/joi)) for the payload can also be passed as a parameter.
 
 // define a consumer
 worker.setConsumer(async (data) => {
@@ -74,8 +76,6 @@ worker.setConsumer(async (data) => {
   // job is failed
   data.discard();
 });
-// the second parameter of setConsumer() is an optional [JOI](https://github.com/hapijs/joi)
-// schema definition for the payload
 ```
 
 ### Using publishers
@@ -84,20 +84,24 @@ The Publish Service distributes the events to all publishers.
 See the example on [RabbitMQ](https://www.rabbitmq.com/tutorials/tutorial-three-javascript.html).
 
 ```javascript
-const trigger = await amqp.publisher('publish-queue-name');
+const trigger = await amqp.publisher({ name: 'publish-queue-name' });
 
-const publisher1 = await amqp.publisher('publish-queue-name');
+const publisher1 = await amqp.publisher({ name: 'publish-queue-name' });
 
 // publisher with error queue
-const error = await amqp.worker('error-publish-queue-name');
-const publisher2 = await amqp.publisher('publish-queue-name', error);
+const error = await amqp.worker({ name: 'error-publish-queue-name' });
+const publisher2 = await amqp.publisher({ name: 'publish-queue-name', errorService: error });
+
+// Optionally, a schema ([JOI](https://github.com/hapijs/joi)) for the payload can also be passed as a parameter.
 
 publisher1.setConsumer(async (data) => {
   // see worker section
+  
   // data.payload.message = imported
 });
 publisher2.setConsumer(async (data) => {
   // see worker section
+  
   // data.payload.message = imported
 });
 
