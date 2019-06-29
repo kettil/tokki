@@ -34,6 +34,8 @@ const amqp = tokki({
 });
 ```
 
+Examples are stored in the [examples folder](./examples).
+
 ### Using workers
 
 The worker service distributes the events to the various workers. Each event only goes to one worker.
