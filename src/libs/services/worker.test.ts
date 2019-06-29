@@ -62,7 +62,7 @@ describe('Check the class Worker', () => {
     test('it should be configured the channel when initializeGlobal() is called', async () => {
       expect.assertions(6);
 
-      await worker.initializeGlobal();
+      await (worker as any).initializeGlobal();
 
       expect(mockChannelAssertExchange.mock.calls.length).toBe(1);
       expect(mockChannelAssertExchange.mock.calls[0]).toEqual([name, 'direct', { durable: true }]);

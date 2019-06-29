@@ -5,14 +5,7 @@ import { objectType, publishOptionsType } from '../types';
 export default class Worker<PayloadType extends {} = objectType> extends Service<PayloadType> {
   /**
    *
-   */
-  async initializeGlobal() {
-    await this.instance.channel.assertExchange(this.name, 'direct', { durable: true });
-    await this.instance.channel.assertQueue(this.name, { durable: true, maxPriority: 10 });
-    await this.instance.channel.bindQueue(this.name, this.name, '', {});
-  }
-
-  /**
+   * options.priority: number range between 1 - 10; default 1
    *
    * @param payload
    * @param options
@@ -28,5 +21,14 @@ export default class Worker<PayloadType extends {} = objectType> extends Service
     }
 
     await super.send(payload, options);
+  }
+
+  /**
+   *
+   */
+  protected async initializeGlobal() {
+    await this.instance.channel.assertExchange(this.name, 'direct', { durable: true });
+    await this.instance.channel.assertQueue(this.name, { durable: true, maxPriority: 10 });
+    await this.instance.channel.bindQueue(this.name, this.name, '', {});
   }
 }

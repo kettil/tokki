@@ -64,7 +64,7 @@ describe('Check the class Publisher', () => {
     test('it should be configured the channel when call the init() function', async () => {
       expect.assertions(2);
 
-      await publisher.initializeGlobal();
+      await (publisher as any).initializeGlobal();
 
       expect(mockChannelAssertExchange.mock.calls.length).toBe(1);
       expect(mockChannelAssertExchange.mock.calls[0]).toEqual([name, 'fanout', { durable: true }]);
@@ -81,7 +81,7 @@ describe('Check the class Publisher', () => {
       mockChannelAssertQueue.mockResolvedValue({ queue: randomQueueName });
       mockChannelConsume.mockResolvedValue({ consumerTag: 'tag' });
 
-      await publisher.initializeConsumer();
+      await (publisher as any).initializeConsumer();
 
       expect(mockChannelAssertQueue.mock.calls.length).toBe(1);
       expect(mockChannelAssertQueue.mock.calls[0]).toEqual(['', { autoDelete: true, exclusive: true }]);

@@ -372,8 +372,8 @@ describe('Check the class Service', () => {
       const mockSender = jest.fn();
       const payload = { a: 'z', n: 23 };
 
-      service.initializeGlobal = mockGlobal;
-      service.initializeSender = mockSender;
+      (service as any).initializeGlobal = mockGlobal;
+      (service as any).initializeSender = mockSender;
 
       await service.send(payload);
 
@@ -398,8 +398,8 @@ describe('Check the class Service', () => {
       const mockGlobal = jest.fn();
       const mockSender = jest.fn();
 
-      service.initializeGlobal = mockGlobal;
-      service.initializeSender = mockSender;
+      (service as any).initializeGlobal = mockGlobal;
+      (service as any).initializeSender = mockSender;
 
       await service.send({ a: 1 });
       await service.send({ a: 2 });
@@ -434,8 +434,8 @@ describe('Check the class Service', () => {
       const mockConsumer = jest.fn();
       const mockWorker = jest.fn();
 
-      service.initializeGlobal = mockGlobal;
-      service.initializeConsumer = mockConsumer;
+      (service as any).initializeGlobal = mockGlobal;
+      (service as any).initializeConsumer = mockConsumer;
 
       await service.setConsumer(mockWorker);
 
@@ -458,8 +458,8 @@ describe('Check the class Service', () => {
 
       mockChannelConsume.mockResolvedValueOnce({ consumerTag: '123456' });
 
-      service.initializeGlobal = mockGlobal;
-      service.initializeConsumer = mockConsumer;
+      (service as any).initializeGlobal = mockGlobal;
+      (service as any).initializeConsumer = mockConsumer;
 
       await service.setConsumer(mockWorker1);
 

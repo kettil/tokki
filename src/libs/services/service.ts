@@ -1,3 +1,4 @@
+// tslint:disable:no-empty
 import Joi from '@hapi/joi';
 import { ConsumeMessage } from 'amqplib';
 
@@ -48,27 +49,6 @@ export default class Service<PayloadType extends {} = objectType> extends EventE
 
   /**
    *
-   */
-  async initializeGlobal() {
-    // dummy
-  }
-
-  /**
-   *
-   */
-  async initializeSender() {
-    // dummy
-  }
-
-  /**
-   *
-   */
-  async initializeConsumer() {
-    // dummy
-  }
-
-  /**
-   *
    * @param payload
    * @param options
    */
@@ -91,6 +71,10 @@ export default class Service<PayloadType extends {} = objectType> extends EventE
       },
       `New payload for queue "${this.name}".`,
     );
+
+    if (this.schema) {
+      payload = await this.schema.validate(payload);
+    }
 
     this.instance.channel.publish(this.name, '', Buffer.from(JSON.stringify(payload), 'utf8'), {
       priority,
@@ -147,6 +131,21 @@ export default class Service<PayloadType extends {} = objectType> extends EventE
       await delay(100);
     }
   }
+
+  /**
+   *
+   */
+  protected async initializeGlobal() {}
+
+  /**
+   *
+   */
+  protected async initializeSender() {}
+
+  /**
+   *
+   */
+  protected async initializeConsumer() {}
 
   /*
    *

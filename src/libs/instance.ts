@@ -74,7 +74,7 @@ export default class Instance extends EventEmitter<'close'> {
    * @param param0
    */
   async worker<PayloadType extends {} = objectType>(param0: serviceArgsType): Promise<WorkerService<PayloadType>> {
-    return this.createService({ ...param0, Service: WorkerService });
+    return this.createService({ ...param0, Service: WorkerService }) as any;
   }
 
   /**
@@ -88,7 +88,7 @@ export default class Instance extends EventEmitter<'close'> {
   async publisher<PayloadType extends {} = objectType>(
     param0: serviceArgsType,
   ): Promise<PublisherService<PayloadType>> {
-    return this.createService({ ...param0, Service: PublisherService });
+    return this.createService<PayloadType>({ ...param0, Service: PublisherService }) as any;
   }
 
   /**
