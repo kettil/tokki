@@ -372,6 +372,8 @@ describe('Check the class Service', () => {
       const mockSender = jest.fn();
       const payload = { a: 'z', n: 23 };
 
+      expect((service as any).isInitialized).toEqual({ consumer: false, global: false, sender: false });
+
       (service as any).initializeGlobal = mockGlobal;
       (service as any).initializeSender = mockSender;
 
@@ -379,6 +381,9 @@ describe('Check the class Service', () => {
 
       expect(mockGlobal.mock.calls.length).toBe(1);
       expect(mockSender.mock.calls.length).toBe(1);
+
+      expect((service as any).isInitialized).toEqual({ consumer: false, global: true, sender: true });
+
       expect(mockChannelPublish.mock.calls.length).toBe(1);
       expect(mockChannelPublish.mock.calls[0]).toEqual([
         'test-queue',
@@ -386,6 +391,35 @@ describe('Check the class Service', () => {
         Buffer.from(JSON.stringify(payload), 'utf8'),
         { persistent: true, priority: undefined, timestamp: 1234567890123 },
       ]);
+    });
+
+    /**
+     *
+     */
+    test('it should be thrown a error when function send() is called and payload does not correspond to the schema', async () => {
+      expect.assertions(4);
+
+      const mockGlobal = jest.fn();
+      const mockSender = jest.fn();
+      const payload = { a: 'z', n: 23 };
+
+      const mockValidate = jest.fn().mockRejectedValueOnce(new Error('schema is wrong'));
+      const schema: any = { validate: mockValidate };
+
+      service = new Service(log, instance, name, errorService, schema);
+
+      (service as any).initializeGlobal = mockGlobal;
+      (service as any).initializeSender = mockSender;
+
+      try {
+        await service.send(payload);
+      } catch (err) {
+        expect(err).toBeInstanceOf(Error);
+        expect(err.message).toBe('schema is wrong');
+      }
+
+      expect(mockGlobal.mock.calls.length).toBe(1);
+      expect(mockSender.mock.calls.length).toBe(1);
     });
 
     /**
