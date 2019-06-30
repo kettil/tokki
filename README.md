@@ -98,12 +98,12 @@ const publisher2 = await amqp.publisher({ name: 'publish-queue-name', errorServi
 
 publisher1.setConsumer(async (data) => {
   // see worker section
-  
+  //
   // data.payload.message = imported
 });
 publisher2.setConsumer(async (data) => {
   // see worker section
-  
+  //
   // data.payload.message = imported
 });
 
