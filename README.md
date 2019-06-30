@@ -21,7 +21,9 @@ npm install tokki -D
 
 ## Quick start
 
-Create a connection
+Examples are stored in the [examples folder](./examples).
+
+### Create a connection
 
 ```javascript
 const tokki require('tokki');
@@ -33,8 +35,6 @@ const amqp = tokki({
   url: 'amqp://user:pwd@localhost:5672'
 });
 ```
-
-Examples are stored in the [examples folder](./examples).
 
 ### Using workers
 
