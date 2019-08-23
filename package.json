@@ -50,7 +50,17 @@
     "rabbitmq-client",
     "rabbitmq-consumer",
     "amqp0-9-1",
-    "amqp"
+    "amqp",
+    "queue",
+    "queues",
+    "event",
+    "events",
+    "work"
+    "worker",
+    "publisher",
+    "publish",
+    "subscribe",
+    "pub/sub"
   ],
   "author": "Kjell Dießel <development@kettil.de>",
   "license": "MIT",
