@@ -1,6 +1,6 @@
 {
   "name": "tokki",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "A RabbitMQ/AMQP Handler",
   "main": "build/index.js",
   "types": "build/index.d.ts",
