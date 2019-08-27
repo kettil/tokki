@@ -129,22 +129,16 @@ There are three types of tests:
 
   These tests have no dependencies outside the tested file (exception: class inheritance). All dependencies are mocked.
 
-  A test coverage of 100% should be achieved.
-
 - **Integration Tests**
 
   These tests have no dependencies outside the project. All dependencies in the package.json file are mocked.
   Small libraries, e.g. lodash or luxon, don't need to be mocked.
-
-  A test coverage between 50% and 75% should be achieved.
 
 - **Functional Tests**
 
   These tests are performed with all dependencies and take a long time. External services, e.g. MySQL, will/must be provided via docker.
 
   No dependency should be mocked.
-
-  A test coverage between 50% and 75% should be achieved.
 
 **The following commands are available:**
 
